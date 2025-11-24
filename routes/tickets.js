@@ -1,0 +1,36 @@
+import express from "express"
+import { authenticateToken, authorize } from "../middlewares/auth.js"
+import {
+  createTicket,
+  updateTicketStatus,
+  transferTicket,
+  getAllTickets,
+  getTicketById,
+  callNextTicket,
+  lockTicket,
+} from "../controllers/tickets/index.js"
+
+const router = express.Router()
+
+// Create a new ticket
+router.post("/", createTicket)
+
+// Get all tickets
+router.get("/", authenticateToken, authorize("admin", "user", "super_admin"), getAllTickets)
+
+// Get ticket by ID
+router.get("/:ticketId", authenticateToken, authorize("admin", "user", "super_admin"), getTicketById)
+
+// Update ticket status
+router.put("/:ticketId", authenticateToken, authorize("admin", "user"), updateTicketStatus)
+
+// Transfer ticket
+router.post("/:ticketId/transfer", authenticateToken, authorize("user", "admin"), transferTicket)
+
+// Call next ticket
+router.post("/call-next", authenticateToken, authorize("user"), callNextTicket)
+
+// Lock/Unlock ticket
+router.post("/:ticketId/lock", authenticateToken, authorize("user"), lockTicket)
+
+export default router
