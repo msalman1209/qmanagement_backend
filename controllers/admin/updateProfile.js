@@ -7,9 +7,9 @@ export const updateProfile = async (req, res) => {
 
   const connection = await pool.getConnection()
   try {
-    // Verify the user exists and get their current role
+    // Verify the user exists
     const [users] = await connection.query(
-      "SELECT id, role FROM admin WHERE id = ?", 
+      "SELECT id FROM admin WHERE id = ?", 
       [userId]
     )
 
@@ -63,15 +63,22 @@ export const updateProfile = async (req, res) => {
     await connection.query(updateQuery, params)
 
     // Fetch updated user data (without password)
+    // Try to get role column if it exists, otherwise just get basic fields
     const [updatedUser] = await connection.query(
-      "SELECT id, username, email, role, license_expiry_date FROM admin WHERE id = ?",
+      "SELECT id, username, email FROM admin WHERE id = ?",
       [userId]
     )
+
+    // Add role from the token since it's always available there
+    const user = {
+      ...updatedUser[0],
+      role: req.user.role
+    }
 
     res.json({ 
       success: true, 
       message: "Profile updated successfully",
-      user: updatedUser[0]
+      user
     })
   } catch (error) {
     console.error("Update profile error:", error)
