@@ -15,6 +15,7 @@ export { removeServiceFromUser } from "./services/removeServiceFromUser.js"
 
 // Admins
 export { getAllAdmins } from "./admins/getAllAdmins.js"
+export { getAdminById } from "./admins/getAdminById.js"
 export { createAdmin } from "./admins/createAdmin.js"
 export { updateAdmin } from "./admins/updateAdmin.js"
 export { deleteAdmin } from "./admins/deleteAdmin.js"

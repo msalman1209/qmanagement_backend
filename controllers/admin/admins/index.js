@@ -1,0 +1,5 @@
+export { createAdmin } from "./createAdmin.js"
+export { getAllAdmins } from "./getAllAdmins.js"
+export { getAdminById } from "./getAdminById.js"
+export { updateAdmin } from "./updateAdmin.js"
+export { deleteAdmin } from "./deleteAdmin.js"

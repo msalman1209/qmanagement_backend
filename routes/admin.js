@@ -14,6 +14,7 @@ import {
   getUserServices,
   removeServiceFromUser,
   getAllAdmins,
+  getAdminById,
   createAdmin,
   updateAdmin,
   deleteAdmin,
@@ -53,6 +54,7 @@ router.post("/services/remove", authenticateToken, authorize("admin", "super_adm
 
 // Admin Management Routes (Super Admin only)
 router.get("/admins", authenticateToken, authorize("super_admin"), getAllAdmins)
+router.get("/admins/:adminId", authenticateToken, authorize("super_admin"), getAdminById)
 router.post("/admins", authenticateToken, authorize("super_admin"), createAdmin)
 router.put("/admins/:adminId", authenticateToken, authorize("super_admin"), updateAdmin)
 router.delete("/admins/:adminId", authenticateToken, authorize("super_admin"), deleteAdmin)
