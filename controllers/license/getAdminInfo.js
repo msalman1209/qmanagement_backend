@@ -6,7 +6,12 @@ export const getAdminInfo = async (req, res) => {
   const connection = await pool.getConnection()
   try {
     const [admins] = await connection.query(
-      "SELECT id, email, username FROM admin WHERE id = ? AND role = 'admin'",
+      `SELECT 
+        id, 
+        email, 
+        username
+      FROM admin 
+      WHERE id = ?`,
       [adminId]
     )
 
@@ -14,7 +19,10 @@ export const getAdminInfo = async (req, res) => {
       return res.status(404).json({ success: false, message: "Admin not found" })
     }
 
-    res.json({ success: true, admin: admins[0] })
+    res.json({ success: true, data: admins[0] })
+  } catch (error) {
+    console.error('Get admin info error:', error)
+    res.status(500).json({ success: false, message: "Failed to fetch admin info", error: error.message })
   } finally {
     connection.release()
   }

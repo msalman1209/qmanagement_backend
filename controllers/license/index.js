@@ -1,2 +1,8 @@
 export { getAdminInfo } from "./getAdminInfo.js"
 export { getAllAdmins } from "./getAllAdmins.js"
+export { createLicense } from "./createLicense.js"
+export { getAllLicenses } from "./getAllLicenses.js"
+export { getLicenseById } from "./getLicenseById.js"
+export { updateLicense } from "./updateLicense.js"
+export { deleteLicense } from "./deleteLicense.js"
+export { getLicenseReport } from "./getLicenseReport.js"
