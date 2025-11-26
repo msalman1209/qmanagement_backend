@@ -1,6 +1,7 @@
 import pool from "../../config/database.js"
 import { generateToken } from "../../config/auth.js"
 import bcryptjs from "bcryptjs"
+import { createUserSession } from "./sessionManager.js"
 
 export const userLogin = async (req, res) => {
   const { email, password, counter_no } = req.body
@@ -24,29 +25,37 @@ export const userLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" })
     }
 
-    // Check if user already logged in
+    // Check if user already logged in with ACTIVE session
     const [sessions] = await connection.query(
-      "SELECT * FROM user_sessions WHERE user_id = ?",
+      "SELECT * FROM user_sessions WHERE user_id = ? AND active = 1 AND expires_at > NOW()",
       [user.id]
     )
 
     if (sessions.length > 0) {
       return res.status(409).json({
         success: false,
-        message: `You are already logged in. Please log out first.`,
+        message: `You are already logged in on another device. Please log out first.`,
         already_logged_in: true,
       })
     }
 
-    const token = generateToken({
-      id: user.id,
-      email: user.email,
-      role: "user",
-    })
+    // Create session in database
+    const deviceInfo = req.headers['user-agent'] || 'Unknown'
+    const ipAddress = req.ip || req.connection.remoteAddress
+    const sessionResult = await createUserSession(
+      user.id,
+      user.username,
+      deviceInfo,
+      ipAddress
+    )
+
+    if (!sessionResult.success) {
+      return res.status(500).json({ success: false, message: "Failed to create session" })
+    }
 
     res.json({
       success: true,
-      token,
+      token: sessionResult.token,
       user: {
         id: user.id,
         email: user.email,

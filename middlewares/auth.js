@@ -1,6 +1,7 @@
 import { verifyToken } from "../config/auth.js"
+import { validateAdminSession, validateUserSession } from "../controllers/auth/sessionManager.js"
 
-export const authenticateToken = (req, res, next) => {
+export const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"]
   const token = authHeader && authHeader.split(" ")[1]
 
@@ -9,8 +10,26 @@ export const authenticateToken = (req, res, next) => {
   }
 
   try {
+    // First verify JWT
     const decoded = verifyToken(token)
-    req.user = decoded
+    
+    // Then validate session in database
+    let sessionValidation
+    if (decoded.role === 'user') {
+      sessionValidation = await validateUserSession(token)
+    } else if (decoded.role === 'admin' || decoded.role === 'super_admin') {
+      sessionValidation = await validateAdminSession(token)
+    }
+
+    if (!sessionValidation || !sessionValidation.valid) {
+      return res.status(403).json({ 
+        success: false, 
+        message: sessionValidation?.message || "Session expired or invalid",
+        session_expired: true
+      })
+    }
+
+    req.user = sessionValidation.user
     next()
   } catch (error) {
     res.status(403).json({ success: false, message: "Invalid token" })

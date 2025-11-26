@@ -1,6 +1,7 @@
 import pool from "../../config/database.js"
 import { generateToken } from "../../config/auth.js"
 import bcryptjs from "bcryptjs"
+import { createAdminSession } from "./sessionManager.js"
 
 export const adminLogin = async (req, res) => {
   const { email, password } = req.body
@@ -28,15 +29,24 @@ export const adminLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" })
     }
 
-    const token = generateToken({
-      id: admin.id,
-      email: admin.email,
-      role: "admin",
-    })
+    // Create session in database
+    const deviceInfo = req.headers['user-agent'] || 'Unknown'
+    const ipAddress = req.ip || req.connection.remoteAddress
+    const sessionResult = await createAdminSession(
+      admin.id,
+      admin.username,
+      'admin',
+      deviceInfo,
+      ipAddress
+    )
+
+    if (!sessionResult.success) {
+      return res.status(500).json({ success: false, message: "Failed to create session" })
+    }
 
     res.json({
       success: true,
-      token,
+      token: sessionResult.token,
       user: {
         id: admin.id,
         email: admin.email,
