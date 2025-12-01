@@ -4,18 +4,13 @@ import "express-async-errors"
 import dotenv from "dotenv"
 import pool from "./config/database.js"
 import bcryptjs from "bcryptjs"
-// Function to initialize DB schema if tables are missing
-async function initializeDatabase() {
+import initializeDatabase from "./database/init-database.js"
+
+// Function to setup super admin and other configurations
+async function setupDatabase() {
   try {
-    // Check if admin table exists
-    const [rows] = await pool.query("SHOW TABLES LIKE 'admin'");
-    if (rows.length === 0) {
-      console.log("Admin table not found. Database might not be initialized.");
-      console.log("Please run the schema.sql file manually.");
-      return;
-    }
-    
-    console.log("Database tables found.");
+    // First, initialize all tables
+    await initializeDatabase();
 
     // Check if role column exists in admin table
     const [columns] = await pool.query("SHOW COLUMNS FROM admin LIKE 'role'");
@@ -33,7 +28,7 @@ async function initializeDatabase() {
       console.log("Creating default super admin account...");
       const hashed = await bcryptjs.hash("superadmin@123", 10);
       await pool.query(
-        "INSERT INTO admin (username, email, password, role) VALUES (?, ?, ?, 'super_admin')",
+        "INSERT INTO admin (username, email, password, role, status) VALUES (?, ?, ?, 'super_admin', 'active')",
         ["superadmin", "superadmin@example.com", hashed]
       );
       console.log("✅ Super admin created successfully!");
@@ -43,7 +38,7 @@ async function initializeDatabase() {
       console.log("Super admin account already exists.");
     }
   } catch (err) {
-    console.error("Error initializing database:", err.message);
+    console.error("Error setting up database:", err.message);
   }
 }
 
@@ -81,6 +76,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 // Routes
 app.use("/api/auth", authRoutes)
 app.use("/api/admin", adminRoutes)
+app.use("/api/user", userRoutes)
 app.use("/api/users", userRoutes)
 app.use("/api/tickets", ticketRoutes)
 app.use("/api/license", licenseRoutes)
@@ -104,7 +100,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000
 
 // Initialize DB then start server
-initializeDatabase().then(() => {
+setupDatabase().then(() => {
   app.listen(PORT, () => {
     console.log(`\n🚀 Server is running on port ${PORT}`)
     console.log(`📡 Health check: http://localhost:${PORT}/api/health\n`)

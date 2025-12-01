@@ -17,6 +17,7 @@ export const updateLicense = async (req, res) => {
       expiry_date,
       max_users,
       max_counters,
+      max_services,
       status,
       admin_sections
     } = req.body
@@ -65,6 +66,11 @@ export const updateLicense = async (req, res) => {
       updates.push("company_name = ?")
       values.push(company_name)
     }
+    // Handle logo upload
+    if (req.file) {
+      updates.push("company_logo = ?")
+      values.push(`/uploads/licenses/${req.file.filename}`)
+    }
     if (phone !== undefined) {
       updates.push("phone = ?")
       values.push(phone)
@@ -112,6 +118,14 @@ export const updateLicense = async (req, res) => {
     if (admin_sections !== undefined) {
       updates.push("admin_sections = ?")
       values.push(JSON.stringify(admin_sections))
+    }
+    if (max_services !== undefined) {
+      updates.push("max_services = ?")
+      values.push(max_services)
+    }
+    if (req.body.features !== undefined) {
+      updates.push("features = ?")
+      values.push(typeof req.body.features === 'string' ? req.body.features : JSON.stringify(req.body.features))
     }
 
     if (updates.length === 0) {

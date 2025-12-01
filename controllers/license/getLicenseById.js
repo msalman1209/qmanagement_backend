@@ -6,32 +6,41 @@ export const getLicenseById = async (req, res) => {
 
     const query = `
       SELECT 
-        id,
-        license_key,
-        admin_id,
-        admin_name,
-        company_name,
-        phone,
-        email,
-        address,
-        city,
-        country,
-        license_type,
-        start_date,
-        expiry_date,
-        max_users,
-        max_counters,
-        status,
-        created_at,
-        updated_at,
+        l.id,
+        l.license_key,
+        l.admin_id,
+        l.admin_name,
+        l.company_name,
+        l.company_logo,
+        l.phone,
+        l.email,
+        l.address,
+        l.city,
+        l.country,
+        l.license_type,
+        l.start_date,
+        l.expiry_date,
+        l.max_users,
+        l.max_counters,
+        l.max_services,
+        l.features,
+        l.status,
+        l.created_at,
+        l.updated_at,
+        a.username as admin_username,
+        a.email as admin_email,
+        a.status as admin_status,
         CASE 
-          WHEN expiry_date < CURDATE() THEN 'expired'
-          WHEN DATEDIFF(expiry_date, CURDATE()) <= 7 THEN 'expiring_soon'
+          WHEN l.expiry_date < CURDATE() THEN 'expired'
+          WHEN DATEDIFF(l.expiry_date, CURDATE()) <= 7 THEN 'expiring_soon'
           ELSE 'active'
         END as license_status,
-        DATEDIFF(expiry_date, CURDATE()) as days_remaining
-      FROM licenses
-      WHERE id = ?
+        DATEDIFF(l.expiry_date, CURDATE()) as days_remaining,
+        (SELECT COUNT(*) FROM users WHERE admin_id = l.admin_id) as current_users,
+        (SELECT COUNT(*) FROM services WHERE admin_id = l.admin_id) as current_services
+      FROM licenses l
+      LEFT JOIN admin a ON l.admin_id = a.id
+      WHERE l.id = ?
     `
 
     const [licenses] = await pool.query(query, [id])
@@ -43,9 +52,29 @@ export const getLicenseById = async (req, res) => {
       })
     }
 
+    const license = licenses[0]
+    
+    // Parse features JSON if it exists
+    if (license.features) {
+      try {
+        license.features = JSON.parse(license.features)
+      } catch (e) {
+        license.features = []
+      }
+    }
+
+    // Calculate usage percentages
+    license.user_usage_percentage = license.max_users > 0 
+      ? Math.round((license.current_users / license.max_users) * 100) 
+      : 0
+    
+    license.service_usage_percentage = license.max_services > 0 
+      ? Math.round((license.current_services / license.max_services) * 100) 
+      : 0
+
     res.status(200).json({
       success: true,
-      data: licenses[0]
+      data: license
     })
   } catch (error) {
     console.error("Get license by ID error:", error)

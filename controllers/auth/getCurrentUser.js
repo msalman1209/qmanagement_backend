@@ -12,7 +12,7 @@ export const getCurrentUser = async (req, res) => {
       user = result[0]
     } else {
       const [result] = await connection.query(
-        "SELECT id, email, username FROM users WHERE id = ?",
+        "SELECT id, email, username, admin_id FROM users WHERE id = ?",
         [req.user.id]
       )
       user = result[0]

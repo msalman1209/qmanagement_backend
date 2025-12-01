@@ -33,27 +33,48 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|svg/;
+    // If no file provided, skip validation
+    if (!file) {
+      return cb(null, false);
+    }
+    
+    const allowedTypes = /jpeg|jpg|png|gif|svg|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
     if (mimetype && extname) {
       return cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed!'));
+      cb(null, false); // Skip file instead of throwing error
     }
   }
 });
 
+// Middleware to handle optional file upload
+const optionalUpload = (req, res, next) => {
+  upload.single('logo')(req, res, (err) => {
+    // Ignore multer errors for optional uploads
+    if (err instanceof multer.MulterError) {
+      // Skip multer errors
+      return next();
+    } else if (err) {
+      // Skip other errors too
+      return next();
+    }
+    next();
+  });
+};
+
 // Routes
-router.post('/create', authenticateToken, upload.single('logo'), createService);
+router.post('/create', authenticateToken, optionalUpload, createService);
 router.get('/all', authenticateToken, getAllServices);
-router.put('/update/:id', authenticateToken, upload.single('logo'), updateService);
+router.put('/update/:id', authenticateToken, optionalUpload, updateService);
 router.delete('/delete/:id', authenticateToken, deleteService);
 
-// User service assignment routes
+// User service assignment routes (no file upload needed)
 router.post('/assign', authenticateToken, assignServicesToUser);
 router.get('/assigned', authenticateToken, getUserAssignedServices);
+router.get('/user/:id', authenticateToken, getUserAssignedServices); // Get services for specific user
 router.delete('/assigned/:user_id', authenticateToken, deleteUserServices);
 
 export default router;

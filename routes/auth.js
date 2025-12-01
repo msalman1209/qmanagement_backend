@@ -6,6 +6,8 @@ import {
   userLogin,
   logout,
   getCurrentUser,
+  verifyCurrentSession,
+  setUserCounter,
 } from "../controllers/auth/index.js"
 
 const router = express.Router()
@@ -24,5 +26,11 @@ router.post("/logout", authenticateToken, logout)
 
 // Get current user
 router.get("/me", authenticateToken, getCurrentUser)
+
+// Verify current session and license
+router.get("/verify", authenticateToken, verifyCurrentSession)
+
+// Set user counter (after login)
+router.post("/user/set-counter", authenticateToken, setUserCounter)
 
 export default router

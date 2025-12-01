@@ -9,7 +9,9 @@
     "dev": "nodemon server.js",
     "build": "echo 'No build step required for Node.js backend'",
     "migrate:users": "node ./database/migrate-users-table.js",
-    "list:users": "node ./scripts/list-users.js"
+    "list:users": "node ./scripts/list-users.js",
+    "setup:license": "node ./database/setup-licensing.js",
+    "test:license": "node ./database/test-licensing.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -1,5 +1,6 @@
 import { verifyToken } from "../config/auth.js"
 import { validateAdminSession, validateUserSession } from "../controllers/auth/sessionManager.js"
+import { verifyAdminLicense } from "../utils/licenseUtils.js"
 
 export const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"]
@@ -45,16 +46,139 @@ export const authorize = (...roles) => {
   }
 }
 
+/**
+ * Check if admin's license is valid and not expired
+ * Super admins bypass this check
+ */
 export const checkLicenseExpiry = async (req, res, next) => {
-  if (req.user.role === "admin") {
-    const today = new Date().toISOString().split("T")[0]
-    if (req.user.license_expiry_date < today) {
-      return res.status(403).json({
-        success: false,
-        message: "Please update your license.",
-        license_expired: true,
-      })
+  try {
+    // Super admin bypass license check
+    if (req.user.role === "super_admin") {
+      return next()
     }
+
+    // Check if user is admin
+    if (req.user.role === "admin") {
+      const adminId = req.user.id || req.user.admin_id
+
+      if (!adminId) {
+        return res.status(403).json({
+          success: false,
+          message: "Admin ID not found",
+        })
+      }
+
+      // Verify admin license
+      const verification = await verifyAdminLicense(adminId)
+
+      if (!verification.valid) {
+        return res.status(403).json({
+          success: false,
+          message: verification.message,
+          license_expired: true,
+          license_info: verification.license
+        })
+      }
+
+      // Attach license info to request for later use
+      req.license = verification.license
+      req.daysRemaining = verification.daysRemaining
+
+      // Warn if license is expiring soon (7 days or less)
+      if (verification.daysRemaining <= 7) {
+        res.setHeader('X-License-Warning', `License expiring in ${verification.daysRemaining} days`)
+      }
+    }
+
+    next()
+  } catch (error) {
+    console.error("License check error:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Error checking license",
+      error: error.message
+    })
   }
-  next()
+}
+
+/**
+ * Check if admin can perform user-related operations
+ */
+export const checkUserLimits = async (req, res, next) => {
+  try {
+    // Super admin bypass
+    if (req.user.role === "super_admin") {
+      return next()
+    }
+
+    if (req.user.role === "admin" && req.method === "POST") {
+      const adminId = req.user.id || req.user.admin_id
+      const { canCreateUser } = await import("../utils/licenseUtils.js")
+      
+      const check = await canCreateUser(adminId)
+      
+      if (!check.allowed) {
+        return res.status(403).json({
+          success: false,
+          message: check.message,
+          limit_reached: true,
+          current: check.currentUsers,
+          max: check.maxUsers
+        })
+      }
+
+      // Attach limit info to request
+      req.userLimits = check
+    }
+
+    next()
+  } catch (error) {
+    console.error("User limits check error:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Error checking user limits",
+      error: error.message
+    })
+  }
+}
+
+/**
+ * Check if admin can perform service-related operations
+ */
+export const checkServiceLimits = async (req, res, next) => {
+  try {
+    // Super admin bypass
+    if (req.user.role === "super_admin") {
+      return next()
+    }
+
+    if (req.user.role === "admin" && req.method === "POST") {
+      const adminId = req.user.id || req.user.admin_id
+      const { canCreateService } = await import("../utils/licenseUtils.js")
+      
+      const check = await canCreateService(adminId)
+      
+      if (!check.allowed) {
+        return res.status(403).json({
+          success: false,
+          message: check.message,
+          limit_reached: true,
+          current: check.currentServices,
+          max: check.maxServices
+        })
+      }
+
+      // Attach limit info to request
+      req.serviceLimits = check
+    }
+
+    next()
+  } catch (error) {
+    console.error("Service limits check error:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Error checking service limits",
+      error: error.message
+    })
+  }
 }

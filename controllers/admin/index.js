@@ -35,3 +35,6 @@ export { updateCounterDisplay } from "./display/updateCounterDisplay.js"
 export { getTickets } from "./reports/getTickets.js"
 export { getReports } from "./reports/getReports.js"
 export { getUserSessions } from "./reports/getUserSessions.js"
+
+// Counters
+export { getAdminCounters } from "./counters/getAdminCounters.js"

@@ -2,7 +2,7 @@ import pool from "../../../config/database.js"
 import bcryptjs from "bcryptjs"
 
 export const createUser = async (req, res) => {
-  const { username, email, password, admin_id: bodyAdminId, status } = req.body
+  const { username, email, password, role, admin_id: bodyAdminId, status } = req.body
 
   if (!username || !email || !password) {
     return res.status(400).json({ success: false, message: "All fields required" })
@@ -16,13 +16,16 @@ export const createUser = async (req, res) => {
     adminIdToUse = bodyAdminId
   }
 
+  // Set role - default to 'user'
+  const userRole = role || 'user'
+
   const connection = await pool.getConnection()
   try {
     const hashedPassword = await bcryptjs.hash(password, 10)
 
     await connection.query(
-      "INSERT INTO users (username, email, password, admin_id, status) VALUES (?, ?, ?, ?, ?)",
-      [username, email, hashedPassword, adminIdToUse, status || "active"]
+      "INSERT INTO users (username, email, password, role, admin_id, status) VALUES (?, ?, ?, ?, ?, ?)",
+      [username, email, hashedPassword, userRole, adminIdToUse, status || "active"]
     )
 
     res.status(201).json({ success: true, message: "User created successfully" })

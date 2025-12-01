@@ -1,7 +1,7 @@
 import pool from "../../config/database.js"
 
 export const createTicket = async (req, res) => {
-  const { service_id, name, email, number, counter_no } = req.body
+  const { service_id, name, email, number, counter_no, user_id, admin_id } = req.body
 
   if (!service_id) {
     return res.status(400).json({ success: false, message: "Service ID required" })
@@ -18,6 +18,15 @@ export const createTicket = async (req, res) => {
 
     const service = services[0]
     const prefix = service.initial_ticket
+
+    // Get admin_id from user if not provided
+    let finalAdminId = admin_id
+    if (!finalAdminId && user_id) {
+      const [users] = await connection.query("SELECT admin_id FROM users WHERE id = ?", [user_id])
+      if (users.length > 0) {
+        finalAdminId = users[0].admin_id
+      }
+    }
 
     // Get or create ticket counter for this prefix
     const today = new Date().toISOString().split("T")[0]
@@ -44,14 +53,26 @@ export const createTicket = async (req, res) => {
     const ticketId = `${prefix}-${ticketNumber}`
     const currentTime = new Date().toTimeString().split(" ")[0]
 
-    await connection.query(
+    const [result] = await connection.query(
       `INSERT INTO tickets 
-       (ticket_id, service_name, counter_no, name, email, number, status, time, date)
-       VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?)`,
-      [ticketId, service.service_name, counter_no || prefix, name || "", email || "", number || "", currentTime, today]
+       (ticket_id, service_name, counter_no, name, email, number, status, time, date, user_id, admin_id)
+       VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?)`,
+      [ticketId, service.service_name, counter_no || prefix, name || "", email || "", number || "", currentTime, today, user_id || null, finalAdminId || null]
     )
 
-    res.status(201).json({ success: true, message: "Ticket created", ticket_id: ticketId })
+    res.status(201).json({ 
+      success: true, 
+      message: "Ticket created", 
+      ticket_id: ticketId,
+      ticket: {
+        id: result.insertId,
+        ticket_id: ticketId,
+        service_name: service.service_name,
+        name: name || "",
+        email: email || "",
+        number: number || ""
+      }
+    })
   } finally {
     connection.release()
   }

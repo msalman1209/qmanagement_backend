@@ -25,6 +25,7 @@ import {
   getReports,
   getUserSessions,
   updateProfile,
+  getAdminCounters,
 } from "../controllers/admin/index.js"
 
 const router = express.Router()
@@ -72,5 +73,8 @@ router.get("/reports", authenticateToken, authorize("admin", "super_admin"), get
 
 // User Sessions Routes
 router.get("/user-sessions", authenticateToken, authorize("admin", "super_admin"), getUserSessions)
+
+// Counter Routes
+router.get("/counters/:adminId", authenticateToken, getAdminCounters)
 
 export default router

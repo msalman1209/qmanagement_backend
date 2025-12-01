@@ -1,5 +1,11 @@
 import pool from "../../config/database.js"
 import bcryptjs from "bcryptjs"
+import { 
+  generateLicenseKey, 
+  isValidLicenseKeyFormat,
+  getLicenseTypeFeatures,
+  calculateExpiryDate 
+} from "../../utils/licenseUtils.js"
 
 export const createLicense = async (req, res) => {
   const connection = await pool.getConnection()
@@ -7,7 +13,7 @@ export const createLicense = async (req, res) => {
   try {
     await connection.beginTransaction()
     
-    const {
+    let {
       license_key,
       company_name,
       phone,
@@ -20,34 +26,67 @@ export const createLicense = async (req, res) => {
       expiry_date,
       max_users,
       max_counters,
+      max_services,
+      features,
       status,
       admin_username,
       admin_password
     } = req.body
 
+    // Handle logo upload
+    const company_logo = req.file ? `/uploads/licenses/${req.file.filename}` : null
+
     // Validate required fields
-    if (!license_key || !company_name || !license_type || !start_date || !expiry_date) {
+    if (!company_name || !license_type || !admin_username || !admin_password || !email) {
       await connection.rollback()
       return res.status(400).json({ 
         success: false, 
-        message: "Missing required fields" 
+        message: "Missing required fields: company_name, license_type, admin_username, admin_password, email" 
       })
     }
 
-    // Validate admin credentials if provided
-    if (!admin_username || !admin_password) {
-      await connection.rollback()
-      return res.status(400).json({
-        success: false,
-        message: "Admin username and password are required"
-      })
+    // Generate license key if not provided
+    if (!license_key) {
+      license_key = generateLicenseKey()
+    } else {
+      // Validate license key format
+      if (!isValidLicenseKeyFormat(license_key)) {
+        await connection.rollback()
+        return res.status(400).json({
+          success: false,
+          message: "Invalid license key format. Format should be XXXX-XXXX-XXXX-XXXX"
+        })
+      }
     }
 
-    if (!email) {
+    // Get license type features
+    const licenseFeatures = getLicenseTypeFeatures(license_type)
+    
+    // Set defaults from license type if not provided
+    max_users = max_users || licenseFeatures.max_users
+    max_counters = max_counters || licenseFeatures.max_counters
+    max_services = max_services || licenseFeatures.max_services
+    features = features || JSON.stringify(licenseFeatures.features)
+
+    // Set start date to today if not provided
+    if (!start_date) {
+      start_date = new Date().toISOString().split('T')[0]
+    }
+
+    // Calculate expiry date based on license type if not provided
+    if (!expiry_date) {
+      expiry_date = calculateExpiryDate(start_date, license_type)
+    }
+
+    // Validate dates
+    const startDateObj = new Date(start_date)
+    const expiryDateObj = new Date(expiry_date)
+    
+    if (expiryDateObj <= startDateObj) {
       await connection.rollback()
       return res.status(400).json({
         success: false,
-        message: "Email is required"
+        message: "Expiry date must be after start date"
       })
     }
 
@@ -96,17 +135,21 @@ export const createLicense = async (req, res) => {
     // Hash the password
     const hashedPassword = await bcryptjs.hash(admin_password, 10)
 
-    // Create admin account
+    // Create admin account with license info
     const adminQuery = `
       INSERT INTO admin (
-        username, email, password, role, created_at
-      ) VALUES (?, ?, ?, 'admin', NOW())
+        username, email, password, role, license_key, license_expiry_date, 
+        status, created_at
+      ) VALUES (?, ?, ?, 'admin', ?, ?, ?, NOW())
     `
 
     const [adminResult] = await connection.query(adminQuery, [
       admin_username,
       email,
-      hashedPassword
+      hashedPassword,
+      license_key,
+      expiry_date,
+      status || 'active'
     ])
 
     const newAdminId = adminResult.insertId
@@ -114,10 +157,10 @@ export const createLicense = async (req, res) => {
     // Insert new license with the newly created admin ID
     const licenseQuery = `
       INSERT INTO licenses (
-        license_key, admin_id, admin_name, company_name, phone, email, 
+        license_key, admin_id, admin_name, company_name, company_logo, phone, email, 
         address, city, country, license_type, start_date, expiry_date, 
-        max_users, max_counters, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        max_users, max_counters, max_services, features, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `
 
     const [licenseResult] = await connection.query(licenseQuery, [
@@ -125,6 +168,7 @@ export const createLicense = async (req, res) => {
       newAdminId,
       admin_username,
       company_name,
+      company_logo,
       phone || null,
       email,
       address || null,
@@ -133,8 +177,10 @@ export const createLicense = async (req, res) => {
       license_type,
       start_date,
       expiry_date,
-      max_users || 10,
-      max_counters || 5,
+      max_users,
+      max_counters,
+      max_services,
+      typeof features === 'string' ? features : JSON.stringify(features),
       status || 'active'
     ])
 
@@ -148,7 +194,14 @@ export const createLicense = async (req, res) => {
         license_key,
         admin_id: newAdminId,
         admin_username,
-        admin_email: email
+        admin_email: email,
+        license_type,
+        start_date,
+        expiry_date,
+        max_users,
+        max_counters,
+        max_services,
+        features: typeof features === 'string' ? JSON.parse(features) : features
       }
     })
   } catch (error) {

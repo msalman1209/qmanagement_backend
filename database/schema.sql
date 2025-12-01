@@ -31,15 +31,81 @@ CREATE TABLE `admin` (
   `id` int(11) NOT NULL,
   `username` varchar(30) DEFAULT NULL,
   `email` varchar(100) DEFAULT NULL,
-  `password` varchar(50) DEFAULT NULL
+  `password` varchar(255) DEFAULT NULL,
+  `role` ENUM('super_admin', 'admin') DEFAULT 'admin',
+  `license_key` varchar(255) DEFAULT NULL,
+  `license_expiry_date` date DEFAULT NULL,
+  `status` ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `admin`
 --
 
-INSERT INTO `admin` (`id`, `username`, `email`, `password`) VALUES
-(2, 'admin', 'admin@gmail.com', 'admin');
+INSERT INTO `admin` (`id`, `username`, `email`, `password`, `role`, `status`) VALUES
+(1, 'superadmin', 'superadmin@qmanagement.com', '$2a$10$samplehashedpassword', 'super_admin', 'active'),
+(2, 'admin', 'admin@gmail.com', 'admin', 'admin', 'active');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_sessions`
+--
+
+CREATE TABLE `admin_sessions` (
+  `session_id` int(11) NOT NULL AUTO_INCREMENT,
+  `admin_id` int(11) NOT NULL,
+  `token` varchar(500) NOT NULL,
+  `device_info` varchar(255) DEFAULT NULL,
+  `ip_address` varchar(50) DEFAULT NULL,
+  `last_activity` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `expires_at` TIMESTAMP NOT NULL,
+  `is_active` TINYINT(1) DEFAULT 1,
+  PRIMARY KEY (`session_id`),
+  KEY `idx_admin_id` (`admin_id`),
+  KEY `idx_token` (`token`(255)),
+  KEY `idx_expires_at` (`expires_at`),
+  FOREIGN KEY (`admin_id`) REFERENCES `admin`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `licenses`
+--
+
+CREATE TABLE `licenses` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `license_key` varchar(255) UNIQUE NOT NULL,
+  `admin_id` int(11) NOT NULL,
+  `admin_name` varchar(255) NOT NULL,
+  `company_name` varchar(255) NOT NULL,
+  `phone` varchar(50),
+  `email` varchar(255) NOT NULL,
+  `address` TEXT,
+  `city` varchar(100),
+  `country` varchar(100),
+  `license_type` ENUM('trial', 'basic', 'premium', 'enterprise') DEFAULT 'basic',
+  `start_date` DATE NOT NULL,
+  `expiry_date` DATE NOT NULL,
+  `max_users` int(11) DEFAULT 10,
+  `max_counters` int(11) DEFAULT 5,
+  `max_services` int(11) DEFAULT 10,
+  `features` JSON DEFAULT NULL,
+  `status` ENUM('active', 'inactive', 'suspended', 'expired') DEFAULT 'active',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_license_key` (`license_key`),
+  KEY `idx_admin_id` (`admin_id`),
+  KEY `idx_expiry_date` (`expiry_date`),
+  KEY `idx_status` (`status`),
+  KEY `idx_license_type` (`license_type`),
+  FOREIGN KEY (`admin_id`) REFERENCES `admin`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -409,7 +475,12 @@ CREATE TABLE `user_sessions` (
 -- Indexes for table `admin`
 --
 ALTER TABLE `admin`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_username` (`username`),
+  ADD UNIQUE KEY `unique_email` (`email`),
+  ADD KEY `idx_license_key` (`license_key`),
+  ADD KEY `idx_role` (`role`),
+  ADD KEY `idx_status` (`status`);
 
 --
 -- Indexes for table `admin_btn_settings`

@@ -2,6 +2,32 @@ import pool from '../../config/database.js';
 
 export const getUserAssignedServices = async (req, res) => {
   try {
+    const userId = req.params.id; // Get user ID from URL params if provided
+    
+    // If user ID is provided, get services for that specific user
+    if (userId) {
+      const [services] = await pool.query(`
+        SELECT 
+          s.id,
+          s.service_name,
+          s.service_name_arabic,
+          s.initial_ticket,
+          s.color,
+          s.description,
+          s.logo_url
+        FROM services s
+        INNER JOIN user_services us ON s.id = us.service_id
+        WHERE us.user_id = ?
+        ORDER BY s.service_name
+      `, [userId]);
+
+      return res.json({
+        success: true,
+        services: services
+      });
+    }
+
+    // Otherwise, get all users with their assigned services (admin view)
     const admin_id = req.user.id;
 
     // Get only users who have assigned services (with non-null services)

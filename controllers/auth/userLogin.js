@@ -4,10 +4,10 @@ import bcryptjs from "bcryptjs"
 import { createUserSession } from "./sessionManager.js"
 
 export const userLogin = async (req, res) => {
-  const { email, password, counter_no } = req.body
+  const { email, password } = req.body
 
-  if (!email || !password || !counter_no) {
-    return res.status(400).json({ success: false, message: "Email, password, and counter number required" })
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: "Email and password required" })
   }
 
   const connection = await pool.getConnection()
@@ -23,6 +23,38 @@ export const userLogin = async (req, res) => {
 
     if (!passwordMatch) {
       return res.status(401).json({ success: false, message: "Invalid credentials" })
+    }
+
+    // Check admin license if user is assigned to an admin
+    if (user.admin_id) {
+      const { verifyAdminLicense } = await import('../../utils/licenseUtils.js')
+      const licenseCheck = await verifyAdminLicense(user.admin_id)
+      
+      if (!licenseCheck.valid) {
+        // Get admin details for better error message
+        const [admins] = await connection.query("SELECT username, email FROM admin WHERE id = ?", [user.admin_id])
+        const adminInfo = admins.length > 0 ? admins[0] : null
+        
+        return res.status(403).json({
+          success: false,
+          message: adminInfo 
+            ? `❌ Admin license has expired!\n\nAdmin: ${adminInfo.username}\nEmail: ${adminInfo.email}\n\n📞 Please contact your admin to renew the license.`
+            : "Admin license has expired or is invalid. Please contact your admin.",
+          license_expired: true,
+          license_info: licenseCheck.license,
+          admin_info: adminInfo
+        })
+      }
+
+      // Check user limits
+      const canCreate = await import('../../utils/licenseUtils.js').then(m => m.canCreateUser(user.admin_id))
+      if (!canCreate.allowed) {
+        return res.status(403).json({
+          success: false,
+          message: `User limit reached for this admin account.\n\n${canCreate.message}`,
+          limit_reached: true
+        })
+      }
     }
 
     // Check if user already logged in with ACTIVE session
@@ -60,7 +92,8 @@ export const userLogin = async (req, res) => {
         id: user.id,
         email: user.email,
         username: user.username,
-        role: "user",
+        role: user.role || "user",  // Use actual role from database
+        admin_id: user.admin_id,
       },
     })
   } finally {

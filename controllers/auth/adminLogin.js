@@ -29,6 +29,24 @@ export const adminLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" })
     }
 
+    // Check license before allowing login
+    const { verifyAdminLicense } = await import('../../utils/licenseUtils.js')
+    const licenseCheck = await verifyAdminLicense(admin.id)
+    
+    if (!licenseCheck.valid) {
+      return res.status(403).json({
+        success: false,
+        message: licenseCheck.message || "Your license has expired or is invalid",
+        license_expired: true,
+        license_info: licenseCheck.license
+      })
+    }
+
+    // License is valid but might be expiring soon
+    if (licenseCheck.daysRemaining <= 7 && licenseCheck.daysRemaining > 0) {
+      console.log(`⚠️ License expiring soon for admin ${admin.id}: ${licenseCheck.daysRemaining} days remaining`)
+    }
+
     // Create session in database
     const deviceInfo = req.headers['user-agent'] || 'Unknown'
     const ipAddress = req.ip || req.connection.remoteAddress

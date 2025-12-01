@@ -2,10 +2,10 @@ import pool from "../../../config/database.js"
 import bcryptjs from "bcryptjs"
 
 // Allows partial updates. Only provided fields are updated.
-// Accepts: username, email, password (hashed), status, admin_id (super_admin only)
+// Accepts: username, email, password (hashed), status, role, admin_id (super_admin only)
 export const updateUser = async (req, res) => {
   const { userId } = req.params
-  const { username, email, password, status, admin_id } = req.body || {}
+  const { username, email, password, status, role, admin_id } = req.body || {}
 
   const connection = await pool.getConnection()
   try {
@@ -33,6 +33,10 @@ export const updateUser = async (req, res) => {
     if (typeof status !== 'undefined') {
       sets.push("status = ?")
       params.push(status)
+    }
+    if (typeof role !== 'undefined') {
+      sets.push("role = ?")
+      params.push(role)
     }
     if (typeof admin_id !== 'undefined' && req.user?.role === 'super_admin') {
       sets.push("admin_id = ?")
