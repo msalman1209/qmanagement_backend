@@ -77,6 +77,9 @@ export const userLogin = async (req, res) => {
     const sessionResult = await createUserSession(
       user.id,
       user.username,
+      user.email,
+      user.counter_no,
+      user.admin_id,
       deviceInfo,
       ipAddress
     )

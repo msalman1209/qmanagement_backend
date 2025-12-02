@@ -31,7 +31,7 @@ export const createAdminSession = async (adminId, username, role, deviceInfo = n
 }
 
 // Create user session
-export const createUserSession = async (userId, username, deviceInfo = null, ipAddress = null) => {
+export const createUserSession = async (userId, username, email = null, counterNo = null, adminId = null, deviceInfo = null, ipAddress = null) => {
   try {
     // Generate JWT token with 7 days expiry
     const token = jwt.sign(
@@ -45,11 +45,11 @@ export const createUserSession = async (userId, username, deviceInfo = null, ipA
 
     // Insert session into database
     const query = `
-      INSERT INTO user_sessions (user_id, username, device_id, token, ip_address, login_time, expires_at, active)
-      VALUES (?, ?, ?, ?, ?, NOW(), ?, 1)
+      INSERT INTO user_sessions (user_id, username, email, counter_no, admin_id, device_id, token, ip_address, login_time, expires_at, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, 1)
     `
 
-    await pool.query(query, [userId, username, deviceInfo, token, ipAddress, expiresAt])
+    await pool.query(query, [userId, username, email, counterNo, adminId, deviceInfo, token, ipAddress, expiresAt])
 
     return { success: true, token }
   } catch (error) {
