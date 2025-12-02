@@ -59,11 +59,28 @@ const __dirname = path.dirname(__filename)
 
 const app = express()
 
-// CORS configuration
+// CORS configuration - Allow multiple origins
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://qmanagement-frontend.vercel.app'
+];
+
 const corsOptions = {
-  origin: 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }
 
 // Middleware
