@@ -3,6 +3,9 @@ node_modules/
 package-lock.json
 yarn.lock
 
+# Uploads (user uploaded files)
+uploads/
+
 # Environment variables
 .env
 .env.local
