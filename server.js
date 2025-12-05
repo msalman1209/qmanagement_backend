@@ -50,6 +50,7 @@ import ticketRoutes from "./routes/tickets.js"
 import licenseRoutes from "./routes/license.js"
 import servicesRoutes from "./routes/services.js"
 import voicesRoutes from "./routes/voices.js"
+import counterDisplayRoutes from "./routes/counter-display.js"
 import path from "path"
 import { fileURLToPath } from "url"
 
@@ -100,6 +101,7 @@ app.use("/api/tickets", ticketRoutes)
 app.use("/api/license", licenseRoutes)
 app.use("/api/services", servicesRoutes)
 app.use("/api/voices", voicesRoutes)
+app.use("/api/counter-display", counterDisplayRoutes)
 
 // Health check route
 app.get("/api/health", (req, res) => {
