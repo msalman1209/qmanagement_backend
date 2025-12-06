@@ -14,7 +14,20 @@ export const authenticateToken = async (req, res, next) => {
     // First verify JWT
     const decoded = verifyToken(token)
     
-    // Then validate session in database
+    // ✅ Check if this is a TEMPORARY token (for counter selection)
+    if (decoded.temporary === true) {
+      // Allow temporary token for counter selection only
+      // No session validation needed
+      req.user = {
+        id: decoded.id,
+        username: decoded.username,
+        role: decoded.role,
+        temporary: true
+      }
+      return next()
+    }
+    
+    // For regular tokens, validate session in database
     let sessionValidation
     if (decoded.role === 'user') {
       sessionValidation = await validateUserSession(token)
@@ -33,6 +46,7 @@ export const authenticateToken = async (req, res, next) => {
     req.user = sessionValidation.user
     next()
   } catch (error) {
+    console.error('Auth error:', error)
     res.status(403).json({ success: false, message: "Invalid token" })
   }
 }

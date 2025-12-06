@@ -1,4 +1,5 @@
 import pool from "../../config/database.js"
+import { createUserSession } from "./sessionManager.js"
 
 export const setUserCounter = async (req, res) => {
   const { counter_no } = req.body
@@ -29,9 +30,9 @@ export const setUserCounter = async (req, res) => {
       })
     }
 
-    // Check if counter is already occupied
+    // Check if counter is already occupied by ACTIVE session
     const [existingSessions] = await connection.query(
-      "SELECT username, email FROM user_sessions WHERE counter_no = ? AND admin_id = ? AND is_active = 1",
+      "SELECT username, email FROM user_sessions WHERE counter_no = ? AND admin_id = ? AND active = 1 AND expires_at > NOW()",
       [counter_no, user.admin_id]
     )
 
@@ -44,18 +45,34 @@ export const setUserCounter = async (req, res) => {
       })
     }
 
-    // Update user_sessions with counter number
-    await connection.query(
-      `UPDATE user_sessions 
-       SET counter_no = ?, admin_id = ?, username = ?, email = ?, is_active = 1 
-       WHERE user_id = ? AND active = 1`,
-      [counter_no, user.admin_id, user.username, user.email, userId]
+    // 🎯 NOW CREATE SESSION WITH COUNTER - This is the main fix!
+    const deviceInfo = req.headers['user-agent'] || 'Unknown'
+    const ipAddress = req.ip || req.connection.remoteAddress
+    
+    const sessionResult = await createUserSession(
+      userId,
+      user.username,
+      user.email,
+      counter_no,  // NOW we have the counter number
+      user.admin_id,
+      deviceInfo,
+      ipAddress
     )
+
+    if (!sessionResult.success) {
+      return res.status(500).json({ 
+        success: false, 
+        message: "Failed to create session with counter" 
+      })
+    }
+
+    console.log(`✅ Session created for user ${userId} with counter ${counter_no}`)
 
     res.json({
       success: true,
-      message: "Counter assigned successfully",
+      message: "Counter assigned and session created successfully",
       counter_no,
+      token: sessionResult.token,  // Return new token with session
     })
   } catch (error) {
     console.error("Error setting counter:", error)

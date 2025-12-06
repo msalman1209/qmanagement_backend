@@ -25,6 +25,17 @@ export const userLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" })
     }
 
+    // Check if user account is active
+    if (user.status && user.status !== 'active') {
+      return res.status(403).json({ 
+        success: false, 
+        message: user.status === 'inactive' 
+          ? "Your account is inactive. Please contact your administrator." 
+          : "Your account has been suspended. Please contact your administrator.",
+        account_status: user.status
+      })
+    }
+
     // Check admin license if user is assigned to an admin
     if (user.admin_id) {
       const { verifyAdminLicense } = await import('../../utils/licenseUtils.js')
@@ -71,33 +82,54 @@ export const userLogin = async (req, res) => {
       })
     }
 
-    // Create session in database
-    const deviceInfo = req.headers['user-agent'] || 'Unknown'
-    const ipAddress = req.ip || req.connection.remoteAddress
-    const sessionResult = await createUserSession(
-      user.id,
-      user.username,
-      user.email,
-      user.counter_no,
-      user.admin_id,
-      deviceInfo,
-      ipAddress
-    )
+    // ⚠️ DON'T create session here for users with role='user'
+    // Session will be created AFTER counter selection
+    // Only create session for receptionist or other roles without counter requirement
+    
+    let sessionToken = null;
+    
+    // If user has role='user', they need to select counter first - NO SESSION YET
+    if (user.role && user.role !== 'user') {
+      // For receptionist and other roles, create session immediately
+      const deviceInfo = req.headers['user-agent'] || 'Unknown'
+      const ipAddress = req.ip || req.connection.remoteAddress
+      const sessionResult = await createUserSession(
+        user.id,
+        user.username,
+        user.email,
+        user.counter_no,
+        user.admin_id,
+        deviceInfo,
+        ipAddress
+      )
 
-    if (!sessionResult.success) {
-      return res.status(500).json({ success: false, message: "Failed to create session" })
+      if (!sessionResult.success) {
+        return res.status(500).json({ success: false, message: "Failed to create session" })
+      }
+      
+      sessionToken = sessionResult.token;
+    } else {
+      // For role='user', generate temporary token (will create session after counter selection)
+      const tempToken = generateToken({ 
+        id: user.id, 
+        username: user.username, 
+        role: 'user',
+        temporary: true  // Mark as temporary token
+      });
+      sessionToken = tempToken;
     }
 
     res.json({
       success: true,
-      token: sessionResult.token,
+      token: sessionToken,
       user: {
         id: user.id,
         email: user.email,
         username: user.username,
-        role: user.role || "user",  // Use actual role from database
+        role: user.role || "user",
         admin_id: user.admin_id,
       },
+      needs_counter_selection: user.role === 'user' || !user.role,  // Flag to show counter modal
     })
   } finally {
     connection.release()

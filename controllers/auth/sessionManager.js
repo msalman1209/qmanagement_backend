@@ -137,23 +137,28 @@ export const validateUserSession = async (token) => {
 }
 
 // Logout admin (deactivate session)
+// Logout admin (delete session)
 export const logoutAdmin = async (token) => {
   try {
-    const query = 'UPDATE admin_sessions SET active = 0 WHERE token = ?'
-    await pool.query(query, [token])
-    return { success: true }
+    const query = 'DELETE FROM admin_sessions WHERE token = ?'
+    const [result] = await pool.query(query, [token])
+    
+    console.log(`✅ Admin session deleted - ${result.affectedRows} row(s) removed`)
+    return { success: true, rowsAffected: result.affectedRows }
   } catch (error) {
     console.error('Error logging out admin:', error)
     return { success: false, error: error.message }
   }
 }
 
-// Logout user (deactivate session)
+// Logout user (delete session)
 export const logoutUser = async (token) => {
   try {
-    const query = 'UPDATE user_sessions SET active = 0 WHERE token = ?'
-    await pool.query(query, [token])
-    return { success: true }
+    const query = 'DELETE FROM user_sessions WHERE token = ?'
+    const [result] = await pool.query(query, [token])
+    
+    console.log(`✅ User session deleted - ${result.affectedRows} row(s) removed`)
+    return { success: true, rowsAffected: result.affectedRows }
   } catch (error) {
     console.error('Error logging out user:', error)
     return { success: false, error: error.message }

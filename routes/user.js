@@ -13,8 +13,12 @@ import { getUserAssignedTickets } from "../controllers/user/getUserAssignedTicke
 import { callTicket } from "../controllers/user/callTicket.js"
 import { getCalledTickets } from "../controllers/user/getCalledTickets.js"
 import { getCalledTicketsToday } from "../controllers/user/getCalledTicketsToday.js"
+import { getAvailableCounters } from "../controllers/user/getAvailableCounters.js"
 
 const router = express.Router()
+
+// Get available counters for user (for counter selection)
+router.get("/available-counters", authenticateToken, getAvailableCounters)
 
 // Get all users (for admin)
 router.get("/all", authenticateToken, getAllUsers)

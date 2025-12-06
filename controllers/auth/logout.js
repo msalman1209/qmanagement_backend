@@ -9,16 +9,32 @@ export const logout = async (req, res) => {
       return res.status(400).json({ success: false, message: "No token provided" })
     }
 
+    console.log(`🔓 Logout request for role: ${req.user.role}, user: ${req.user.username || req.user.id}`)
+
     // Deactivate session based on role
+    let result
     if (req.user.role === "user") {
-      await logoutUser(token)
+      result = await logoutUser(token)
     } else if (req.user.role === "admin" || req.user.role === "super_admin") {
-      await logoutAdmin(token)
+      result = await logoutAdmin(token)
     }
 
-    res.json({ success: true, message: "Logged out successfully" })
+    if (result && result.success) {
+      console.log(`✅ Logout successful - Session deactivated in database`)
+      res.json({ 
+        success: true, 
+        message: "Logged out successfully",
+        session_deactivated: true
+      })
+    } else {
+      console.warn('⚠️ Logout completed but session may not have been found')
+      res.json({ 
+        success: true, 
+        message: "Logged out (no active session found)" 
+      })
+    }
   } catch (error) {
-    console.error('Logout error:', error)
+    console.error('❌ Logout error:', error)
     res.status(500).json({ success: false, message: "Failed to logout" })
   }
 }
