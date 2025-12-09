@@ -25,10 +25,8 @@ export const ticketInfoLogin = async (req, res) => {
 
     const user = users[0]
     
-    // ✅ Strict role validation - ONLY 'ticket_info' role allowed
-    if (user.role !== 'ticket_info') {
-      return res.status(401).json({ success: false, message: "Invalid credentials" })
-    }
+    // ✅ Allow any user role to login from ticket-info-login
+    const userRole = user.role || 'ticket_info';
     
     const passwordMatch = await bcryptjs.compare(password, user.password)
 

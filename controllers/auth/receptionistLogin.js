@@ -13,9 +13,9 @@ export const receptionistLogin = async (req, res) => {
 
   const connection = await pool.getConnection()
   try {
-    // Check by email OR username with role='receptionist'
+    // Check by email OR username - allow any role
     const [users] = await connection.query(
-      "SELECT * FROM users WHERE (email = ? OR username = ?) AND role = 'receptionist'", 
+      "SELECT * FROM users WHERE (email = ? OR username = ?)", 
       [loginIdentifier, loginIdentifier]
     );
 
@@ -25,10 +25,8 @@ export const receptionistLogin = async (req, res) => {
 
     const user = users[0]
     
-    // ✅ Strict role validation - ONLY 'receptionist' role allowed
-    if (user.role !== 'receptionist') {
-      return res.status(401).json({ success: false, message: "Invalid credentials" })
-    }
+    // ✅ Allow any user role to login from receptionist-login
+    const userRole = user.role || 'receptionist';
     
     const passwordMatch = await bcryptjs.compare(password, user.password)
 

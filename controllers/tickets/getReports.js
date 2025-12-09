@@ -4,6 +4,8 @@ export const getReports = async (req, res) => {
   try {
     console.log('Reports request from user:', req.user);
     const { startDate, endDate, adminId } = req.query;
+    console.log('Date filter - Start:', startDate, 'End:', endDate);
+    console.log('Admin filter:', adminId);
 
     // Check if admin_id column exists in users table first
     const [columns] = await pool.query("SHOW COLUMNS FROM users LIKE 'admin_id'");
@@ -17,34 +19,34 @@ export const getReports = async (req, res) => {
         u.username,
         u.id as user_id,
         (
-          SELECT COUNT(DISTINCT t1.ticket_id)
+          SELECT COUNT(*)
           FROM tickets t1
           WHERE t1.caller = u.username
           ${startDate && endDate ? 'AND DATE(t1.date) BETWEEN ? AND ?' : ''}
         ) as total,
         (
-          SELECT COUNT(DISTINCT t2.ticket_id)
+          SELECT COUNT(*)
           FROM tickets t2
           WHERE t2.caller = u.username
           AND (LOWER(TRIM(t2.status)) = 'solved' OR TRIM(t2.status) = 'Solved')
           ${startDate && endDate ? 'AND DATE(t2.date) BETWEEN ? AND ?' : ''}
         ) as total_solved,
         (
-          SELECT COUNT(DISTINCT t3.ticket_id)
+          SELECT COUNT(*)
           FROM tickets t3
           WHERE t3.caller = u.username
           AND (LOWER(TRIM(t3.status)) = 'not solved' OR TRIM(t3.status) = 'Not Solved')
           ${startDate && endDate ? 'AND DATE(t3.date) BETWEEN ? AND ?' : ''}
         ) as not_solved,
         (
-          SELECT COUNT(DISTINCT t4.ticket_id)
+          SELECT COUNT(*)
           FROM tickets t4
           WHERE t4.caller = u.username
           AND (LOWER(TRIM(t4.status)) = 'Unattended' OR TRIM(t4.status) = 'Unattended' OR TRIM(t4.status) = 'unattendant' OR TRIM(t4.status) = 'Unattendant' OR LOWER(TRIM(t4.status)) = 'pending' OR TRIM(t4.status) = 'Pending')
           ${startDate && endDate ? 'AND DATE(t4.date) BETWEEN ? AND ?' : ''}
         ) as unattended_tickets,
         (
-          SELECT COUNT(DISTINCT t5.ticket_id)
+          SELECT COUNT(*)
           FROM tickets t5
           WHERE t5.transfer_by = u.username
           ${startDate && endDate ? 'AND DATE(t5.date) BETWEEN ? AND ?' : ''}
@@ -87,6 +89,9 @@ export const getReports = async (req, res) => {
 
     const [reports] = await pool.query(query, queryParams);
     console.log('Query returned', reports.length, 'reports');
+    if (reports.length > 0) {
+      console.log('Sample report data:', reports[0]);
+    }
 
     // Format the response
     const formattedReports = reports.map(report => {

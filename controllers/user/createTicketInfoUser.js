@@ -59,7 +59,7 @@ export const createTicketInfoUser = async (req, res) => {
       });
     }
 
-    // Check if email already exists
+    // Check if email already exists (globally unique)
     const [existingEmail] = await connection.query(
       "SELECT id FROM users WHERE email = ?",
       [email]
@@ -73,17 +73,18 @@ export const createTicketInfoUser = async (req, res) => {
       });
     }
 
-    // Check if username already exists for this admin
+    // ✅ Check if username already exists GLOBALLY (not just per admin)
+    // This ensures username is unique across entire system
     const [existingUsername] = await connection.query(
-      "SELECT id FROM users WHERE username = ? AND admin_id = ?",
-      [username, admin_id]
+      "SELECT id, username, admin_id FROM users WHERE username = ?",
+      [username]
     );
 
     if (existingUsername.length > 0) {
       await connection.rollback();
       return res.status(400).json({
         success: false,
-        message: "Username already exists for this admin"
+        message: `Username "${username}" already exists. Please choose a different username.`
       });
     }
 
