@@ -31,7 +31,7 @@ export const createTicketInfoUser = async (req, res) => {
 
     // Get license information for the admin
     const [licenses] = await connection.query(
-      "SELECT max_ticket_info_users FROM licenses WHERE admin_id = ?",
+      "SELECT max_ticket_info_users FROM licenses WHERE admin_id = ? AND status = 'active'",
       [admin_id]
     );
 
@@ -39,7 +39,7 @@ export const createTicketInfoUser = async (req, res) => {
       await connection.rollback();
       return res.status(404).json({
         success: false,
-        message: "License not found for this admin"
+        message: "No active license found for this admin. Please contact tech support."
       });
     }
 
@@ -55,7 +55,7 @@ export const createTicketInfoUser = async (req, res) => {
       await connection.rollback();
       return res.status(400).json({
         success: false,
-        message: `Maximum ticket_info users limit reached (${maxTicketInfoUsers}). Please upgrade your license or contact support.`
+        message: `Maximum ticket info users limit reached (${maxTicketInfoUsers}/${maxTicketInfoUsers}). Please contact tech support to upgrade your license.`
       });
     }
 
