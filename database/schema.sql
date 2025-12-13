@@ -94,8 +94,13 @@ CREATE TABLE `licenses` (
   `max_users` int(11) DEFAULT 10,
   `max_counters` int(11) DEFAULT 5,
   `max_services` int(11) DEFAULT 10,
+  `max_receptionists` int(11) DEFAULT 5 COMMENT 'Maximum number of reception role users allowed',
+  `max_ticket_info_users` int(11) DEFAULT 3 COMMENT 'Maximum number of ticket_info screen users allowed',
+  `max_sessions_per_receptionist` int(11) DEFAULT 1 COMMENT 'Maximum concurrent sessions allowed per receptionist (1-5)',
+  `max_sessions_per_ticket_info` int(11) DEFAULT 1 COMMENT 'Maximum concurrent sessions allowed per ticket_info user (1-5)',
   `features` JSON DEFAULT NULL,
   `status` ENUM('active', 'inactive', 'suspended', 'expired') DEFAULT 'active',
+  `admin_sections` JSON DEFAULT NULL COMMENT 'Admin accessible sections configuration',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -105,6 +110,29 @@ CREATE TABLE `licenses` (
   KEY `idx_status` (`status`),
   KEY `idx_license_type` (`license_type`),
   FOREIGN KEY (`admin_id`) REFERENCES `admin`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `voice_settings`
+--
+
+CREATE TABLE `voice_settings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `admin_id` int(11) DEFAULT NULL,
+  `voice_type` varchar(50) DEFAULT 'default',
+  `language` varchar(10) DEFAULT 'en',
+  `languages` text DEFAULT NULL COMMENT 'JSON array of selected languages (max 2)',
+  `speech_rate` decimal(3,2) DEFAULT 0.9,
+  `speech_pitch` decimal(3,2) DEFAULT 1.0,
+  `is_active` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_admin_id` (`admin_id`),
+  KEY `idx_is_active` (`is_active`),
+  CONSTRAINT `fk_voice_settings_admin` FOREIGN KEY (`admin_id`) REFERENCES `admin`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -182,8 +210,11 @@ CREATE TABLE `Counters` (
 
 CREATE TABLE `counter_display` (
   `id` int(11) NOT NULL,
+  `admin_id` int(11) DEFAULT NULL,
   `ad_video` longtext NOT NULL,
-  `ticker` longtext NOT NULL
+  `ticker` longtext NOT NULL,
+  KEY `idx_counter_display_admin_id` (`admin_id`),
+  CONSTRAINT `fk_counter_display_admin` FOREIGN KEY (`admin_id`) REFERENCES `admin`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -295,6 +326,8 @@ CREATE TABLE `tickets` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `status` varchar(200) DEFAULT NULL,
   `status_time` timestamp NOT NULL,
+  `called_at` datetime DEFAULT NULL,
+  `called_by_user_id` int(11) DEFAULT NULL,
   `name` varchar(30) NOT NULL,
   `email` varchar(30) NOT NULL,
   `number` varchar(30) NOT NULL,
@@ -310,7 +343,8 @@ CREATE TABLE `tickets` (
   `solved_by_counter` varchar(200) DEFAULT NULL,
   `transfer_by` varchar(200) DEFAULT NULL,
   `locked_by` int(11) DEFAULT NULL,
-  `last_updated` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `last_updated` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  KEY `idx_called_by_user_id` (`called_by_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -420,7 +454,17 @@ CREATE TABLE `users` (
   `id` int(11) NOT NULL,
   `username` varchar(255) DEFAULT NULL,
   `email` varchar(100) NOT NULL,
-  `password` varchar(250) NOT NULL
+  `password` varchar(250) NOT NULL,
+  `admin_id` int(11) DEFAULT NULL,
+  `status` varchar(20) DEFAULT 'active',
+  `role` ENUM('user', 'receptionist', 'ticket_info') DEFAULT 'user',
+  `isLoggedIn` tinyint(1) DEFAULT 0,
+  `lastLogin` timestamp NULL DEFAULT NULL,
+  `sessionExpiry` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY `admin_id` (`admin_id`),
+  CONSTRAINT `users_ibfk_admin` FOREIGN KEY (`admin_id`) REFERENCES `admin`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --

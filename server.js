@@ -4,41 +4,36 @@ import "express-async-errors"
 import dotenv from "dotenv"
 import pool from "./config/database.js"
 import bcryptjs from "bcryptjs"
-import initializeDatabase from "./database/init-database.js"
+import { initializeDatabase } from "./database/auto-setup.js"
 
-// Function to setup super admin and other configurations
+// Function to setup database with automatic schema creation
 async function setupDatabase() {
   try {
-    // First, initialize all tables
+    // Automatically create all tables from COMPLETE_SCHEMA.sql
+    console.log('🔧 Starting automatic database setup...\n');
     await initializeDatabase();
 
-    // Check if role column exists in admin table
-    const [columns] = await pool.query("SHOW COLUMNS FROM admin LIKE 'role'");
-    if (columns.length === 0) {
-      console.log("Adding role column to admin table...");
-      await pool.query("ALTER TABLE admin ADD COLUMN role ENUM('admin', 'super_admin') DEFAULT 'admin' AFTER password");
-      console.log("Role column added successfully.");
-    } else {
-      console.log("Role column already exists in admin table.");
-    }
-
-    // Check if super admin exists
+    // Ensure super admin exists
+    console.log('\n👤 Checking super admin account...');
     const [superAdmins] = await pool.query("SELECT * FROM admin WHERE role = 'super_admin'");
     if (superAdmins.length === 0) {
-      console.log("Creating default super admin account...");
+      console.log("📝 Creating default super admin account...");
       const hashed = await bcryptjs.hash("superadmin@123", 10);
       await pool.query(
         "INSERT INTO admin (username, email, password, role, status) VALUES (?, ?, ?, 'super_admin', 'active')",
         ["superadmin", "superadmin@example.com", hashed]
       );
       console.log("✅ Super admin created successfully!");
-      console.log("   Email: superadmin@example.com");
-      console.log("   Password: superadmin@123");
+      console.log("   📧 Email: superadmin@example.com");
+      console.log("   🔑 Password: superadmin@123");
     } else {
-      console.log("Super admin account already exists.");
+      console.log("✅ Super admin account already exists.");
     }
+    
+    console.log('\n✨ Database setup completed successfully!\n');
   } catch (err) {
-    console.error("Error setting up database:", err.message);
+    console.error("❌ Error setting up database:", err.message);
+    console.error("   Please check your database configuration in .env file\n");
   }
 }
 
