@@ -1,4 +1,5 @@
 import pool from "../../config/database.js"
+import { getAdminTimezone, convertUTCToTimezone } from "../../utils/timezoneHelper.js"
 
 export const transferTicket = async (req, res) => {
   const { ticketId } = req.params
@@ -12,19 +13,37 @@ export const transferTicket = async (req, res) => {
   try {
     console.log(`[transferTicket] BEFORE UPDATE: ticket=${ticketId}, transferred_to=${transferred_to}, transfer_by=${transfer_by}`)
     
+    // Get ticket to find admin_id for timezone
+    const [tickets] = await connection.query(
+      "SELECT admin_id FROM tickets WHERE ticket_id = ?",
+      [ticketId]
+    );
+
+    if (tickets.length === 0) {
+      return res.status(404).json({ success: false, message: "Ticket not found" })
+    }
+
+    const adminId = tickets[0].admin_id;
+    const adminTimezone = adminId ? await getAdminTimezone(adminId) : '+05:00';
+    const now = new Date();
+    const currentTimeInTimezone = convertUTCToTimezone(now, adminTimezone);
+    
+    console.log('🕐 [transferTicket] Admin timezone:', adminTimezone, 'Current time:', currentTimeInTimezone);
+    
     // Reset ticket status and clear caller/locked_by so it becomes available for the new user
     const [result] = await connection.query(
       `UPDATE tickets 
        SET transfered = ?, 
-           transfered_time = NOW(), 
+           transfered_time = ?, 
            reason = ?, 
            transfer_by = ?,
            status = 'Pending',
            caller = NULL,
            locked_by = NULL,
-           counter_no = NULL
+           counter_no = NULL,
+           last_updated = ?
        WHERE ticket_id = ?`,
-      [transferred_to, reason || null, transfer_by || null, ticketId]
+      [transferred_to, currentTimeInTimezone, reason || null, transfer_by || null, currentTimeInTimezone, ticketId]
     )
 
     console.log(`[transferTicket] AFTER UPDATE: Rows affected=${result.affectedRows}`)

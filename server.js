@@ -47,6 +47,8 @@ import servicesRoutes from "./routes/services.js"
 import voicesRoutes from "./routes/voices.js"
 import counterDisplayRoutes from "./routes/counter-display.js"
 import sessionsRoutes from "./routes/sessions.js"
+import activityLogsRoutes from "./routes/activityLogs.js"
+import timezoneRoutes from "./routes/timezoneRoutes.js"
 import path from "path"
 import { fileURLToPath } from "url"
 
@@ -100,6 +102,8 @@ app.use("/api/services", servicesRoutes)
 app.use("/api/voices", voicesRoutes)
 app.use("/api/counter-display", counterDisplayRoutes)
 app.use("/api/sessions", sessionsRoutes)
+app.use("/api/activity-logs", activityLogsRoutes)
+app.use("/api", timezoneRoutes)
 
 // Health check route
 app.get("/api/health", (req, res) => {

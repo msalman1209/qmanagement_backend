@@ -28,7 +28,8 @@ export const getCompletedTickets = async (req, res) => {
       FROM tickets t
       WHERE t.representative_id = ?
         AND t.calling_user_time IS NOT NULL
-        AND t.status IN ('Solved', 'Unattendant', 'Not Solved')
+        AND t.status IN ('Solved', 'Unattended', 'Not Solved', 'Pending')
+        AND COALESCE(t.transfered, '0') IN ('', '0', 0)
     `
     const params = [userId]
 
@@ -66,6 +67,9 @@ export const getCompletedTickets = async (req, res) => {
     }))
 
     console.log(`✅ Found ${formattedTickets.length} completed tickets`)
+    if (formattedTickets.length > 0) {
+      console.log('📤 Sample response:', JSON.stringify(formattedTickets[0], null, 2))
+    }
 
     res.json({ 
       success: true, 

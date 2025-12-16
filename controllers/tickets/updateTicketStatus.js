@@ -1,4 +1,5 @@
 import pool from "../../config/database.js"
+import { getAdminTimezone, convertUTCToTimezone } from "../../utils/timezoneHelper.js"
 
 export const updateTicketStatus = async (req, res) => {
   const { ticketId } = req.params
@@ -7,6 +8,23 @@ export const updateTicketStatus = async (req, res) => {
 
   const connection = await pool.getConnection()
   try {
+    // Get ticket to find admin_id and determine timezone
+    const [tickets] = await connection.query(
+      "SELECT admin_id FROM tickets WHERE ticket_id = ?",
+      [ticketId]
+    );
+
+    if (tickets.length === 0) {
+      return res.status(404).json({ success: false, message: "Ticket not found" })
+    }
+
+    const adminId = tickets[0].admin_id;
+    const adminTimezone = adminId ? await getAdminTimezone(adminId) : '+05:00';
+    const now = new Date();
+    const currentTimeInTimezone = convertUTCToTimezone(now, adminTimezone); // Returns YYYY-MM-DD HH:MM:SS
+    
+    console.log('🕐 [updateTicketStatus] Admin timezone:', adminTimezone, 'Current time:', currentTimeInTimezone);
+
     // Get username and check if representative needs to be set
     let username = null;
     let needsRepresentative = false;
@@ -45,7 +63,9 @@ export const updateTicketStatus = async (req, res) => {
     if (status) {
       updateFields.push("status = ?")
       params.push(status)
-      updateFields.push("status_time = NOW()")
+      updateFields.push("status_time = ?")
+      params.push(currentTimeInTimezone)
+      console.log('🕐 [updateTicketStatus] Setting status_time with timezone:', currentTimeInTimezone);
       
       // Add representative info for status changes
       if (needsRepresentative && username) {
@@ -70,7 +90,9 @@ export const updateTicketStatus = async (req, res) => {
     if (caller) {
       updateFields.push("caller = ?")
       params.push(caller)
-      updateFields.push("calling_user_time = NOW()")
+      updateFields.push("calling_user_time = ?")
+      params.push(currentTimeInTimezone)
+      console.log('🕐 [updateTicketStatus] Setting calling_user_time with timezone:', currentTimeInTimezone);
     }
 
     if (name !== undefined) {
@@ -92,6 +114,28 @@ export const updateTicketStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: "No fields to update" })
     }
 
+    // Always update last_updated timestamp with admin's timezone
+    updateFields.push("last_updated = ?")
+    params.push(currentTimeInTimezone)
+    console.log('🕐 [updateTicketStatus] Setting last_updated with timezone:', currentTimeInTimezone);
+    
+    // Also update status_time if it wasn't already set (for updates that don't change status)
+    if (!updateFields.some(f => f.includes('status_time'))) {
+      updateFields.push("status_time = ?")
+      params.push(currentTimeInTimezone)
+      console.log('🕐 [updateTicketStatus] Also setting status_time (not in update) with timezone:', currentTimeInTimezone);
+    }
+    
+    // Also update calling_user_time if it wasn't already set (for updates that change caller)
+    if (!updateFields.some(f => f.includes('calling_user_time'))) {
+      updateFields.push("calling_user_time = ?")
+      params.push(currentTimeInTimezone)
+      console.log('🕐 [updateTicketStatus] Also setting calling_user_time (not in update) with timezone:', currentTimeInTimezone);
+    }
+
+    console.log('🕐 [updateTicketStatus] Final update fields:', updateFields);
+    console.log('🕐 [updateTicketStatus] Final params:', params.slice(0, -1)); // Don't log ticketId
+
     const updateQuery = `UPDATE tickets SET ${updateFields.join(", ")} WHERE ticket_id = ?`
     params.push(ticketId)
 
@@ -99,6 +143,18 @@ export const updateTicketStatus = async (req, res) => {
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Ticket not found" })
+    }
+    
+    // Verify what was actually saved
+    const [verifyTicket] = await connection.query(
+      "SELECT status_time, calling_user_time, last_updated FROM tickets WHERE ticket_id = ?",
+      [ticketId]
+    );
+    if (verifyTicket.length > 0) {
+      console.log('✓ Saved values in database after update:');
+      console.log('  status_time:', verifyTicket[0].status_time);
+      console.log('  calling_user_time:', verifyTicket[0].calling_user_time);
+      console.log('  last_updated:', verifyTicket[0].last_updated);
     }
 
     res.json({ success: true, message: "Ticket updated" })

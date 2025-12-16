@@ -1,4 +1,5 @@
 import pool from '../../config/database.js';
+import { logActivity } from '../../routes/activityLogs.js';
 
 export const createService = async (req, res) => {
   try {
@@ -14,6 +15,30 @@ export const createService = async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, 0)`,
       [finalAdminId, service_name, service_name_arabic, initial_ticket, color, logo_url]
     );
+
+    // Log activity
+    const actorInfo = req.user?.role === 'super_admin' 
+      ? `Super Admin (${req.user.username})` 
+      : req.user?.role === 'admin' 
+        ? `Admin (${req.user.username})`
+        : 'System';
+    
+    await logActivity(
+      finalAdminId,
+      req.user?.id || null,
+      req.user?.role || 'admin',
+      'SERVICE_CREATED',
+      `${actorInfo} created new service: ${service_name}`,
+      {
+        service_id: result.insertId,
+        service_name,
+        initial_ticket,
+        color,
+        created_by: req.user?.username || 'System',
+        creator_role: req.user?.role || 'admin'
+      },
+      req
+    ).catch(err => console.error('Failed to log activity:', err));
 
     res.status(201).json({
       success: true,

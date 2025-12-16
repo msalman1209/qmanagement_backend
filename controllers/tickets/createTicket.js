@@ -1,4 +1,6 @@
 import pool from "../../config/database.js"
+import { logActivity } from "../../routes/activityLogs.js"
+import { getAdminTimezone, convertUTCToTimezone } from "../../utils/timezoneHelper.js"
 
 export const createTicket = async (req, res) => {
   const { service_id, name, email, number, counter_no, user_id, admin_id } = req.body
@@ -28,11 +30,22 @@ export const createTicket = async (req, res) => {
       }
     }
 
-    // Get or create ticket counter for this prefix
-    const today = new Date().toISOString().split("T")[0]
+    // Get admin's timezone for this ticket
+    const adminTimezone = finalAdminId ? await getAdminTimezone(finalAdminId) : '+05:00'
+    
+    // Get current time in admin's timezone
+    const now = new Date();
+    const adminLocalTimeStr = convertUTCToTimezone(now, adminTimezone); // Returns YYYY-MM-DD HH:MM:SS
+    const [ticketDate, ticketTimeStr] = adminLocalTimeStr.split(' ');
+    const ticketTime = ticketTimeStr; // HH:MM:SS
+    const createdAtTimestamp = adminLocalTimeStr; // YYYY-MM-DD HH:MM:SS
+    
+    console.log('🕐 [createTicket] Admin timezone:', adminTimezone, 'Date:', ticketDate, 'Time:', ticketTime, 'Timestamp:', createdAtTimestamp);
+
+    // Get or create ticket counter for this prefix (using admin's local date)
     const [counters] = await connection.query(
       "SELECT * FROM ticket_counters WHERE prefix = ? AND last_reset_date = ?",
-      [prefix, today]
+      [prefix, ticketDate]
     )
 
     let ticketNumber = 1
@@ -43,22 +56,57 @@ export const createTicket = async (req, res) => {
         prefix,
       ])
     } else {
-      // Reset counter for new day or create new prefix (starts from 1 at midnight)
+      // Reset counter for new day or create new prefix (starts from 1 at midnight in admin's timezone)
       await connection.query(
         "INSERT INTO ticket_counters (prefix, last_ticket_number, last_reset_date) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE last_ticket_number = ?, last_reset_date = ?",
-        [prefix, ticketNumber, today, ticketNumber, today]
+        [prefix, ticketNumber, ticketDate, ticketNumber, ticketDate]
       )
     }
 
     const ticketId = `${prefix}-${ticketNumber}`
-    const currentTime = new Date().toTimeString().split(" ")[0]
 
     const [result] = await connection.query(
       `INSERT INTO tickets 
-       (ticket_id, service_name, counter_no, name, email, number, status, time, date, user_id, admin_id)
-       VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?)`,
-      [ticketId, service.service_name, counter_no || prefix, name || "", email || "", number || "", currentTime, today, user_id || null, finalAdminId || null]
+       (ticket_id, service_name, counter_no, name, email, number, status, time, date, user_id, admin_id, created_at, last_updated)
+       VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?, ?)`,
+      [ticketId, service.service_name, counter_no || prefix, name || "", email || "", number || "", ticketTime, ticketDate, user_id || null, finalAdminId || null, createdAtTimestamp, createdAtTimestamp]
     )
+
+    // Log activity
+    // Determine who created the ticket (receptionist, user, or admin)
+    let creatorRole = 'user';
+    let creatorName = 'Customer';
+    
+    if (user_id) {
+      const [userInfo] = await connection.query("SELECT username, role FROM users WHERE id = ?", [user_id]);
+      if (userInfo.length > 0) {
+        creatorRole = userInfo[0].role;
+        creatorName = userInfo[0].username;
+      }
+    }
+    
+    const actorInfo = creatorRole === 'receptionist' 
+      ? `Receptionist (${creatorName})` 
+      : creatorRole === 'user' 
+        ? `User (${creatorName})`
+        : creatorName;
+    
+    await logActivity(
+      finalAdminId,
+      user_id,
+      creatorRole,
+      'TICKET_CREATED',
+      `${actorInfo} created ticket ${ticketId} for service: ${service.service_name}`,
+      {
+        ticket_id: ticketId,
+        service_name: service.service_name,
+        counter_no: counter_no || prefix,
+        customer_name: name || "",
+        created_by: creatorName,
+        creator_role: creatorRole
+      },
+      req
+    ).catch(err => console.error('Failed to log activity:', err));
 
     res.status(201).json({ 
       success: true, 

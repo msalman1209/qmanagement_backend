@@ -12,7 +12,10 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  timezone: "+04:00",
+  timezone: "+05:00", // Pakistan timezone (Local time where work happens)
+  dateStrings: true, // Return DATE, DATETIME, and TIMESTAMP values as strings instead of converting to Date object
+  supportBigNumbers: true,
+  bigNumberStrings: true
 })
 
 export default pool

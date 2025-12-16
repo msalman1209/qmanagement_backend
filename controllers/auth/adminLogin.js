@@ -2,6 +2,7 @@ import pool from "../../config/database.js"
 import { generateToken } from "../../config/auth.js"
 import bcryptjs from "bcryptjs"
 import { createAdminSession } from "./sessionManager.js"
+import { logActivity } from "../../routes/activityLogs.js"
 
 export const adminLogin = async (req, res) => {
   const { email, password } = req.body
@@ -67,6 +68,21 @@ export const adminLogin = async (req, res) => {
     if (!sessionResult.success) {
       return res.status(500).json({ success: false, message: "Failed to create session" })
     }
+
+    // Log login activity
+    await logActivity(
+      admin.id,
+      admin.id,
+      'admin',
+      'LOGIN',
+      `Admin ${admin.username} logged in successfully`,
+      {
+        email: admin.email,
+        device_info: deviceInfo,
+        ip_address: ipAddress
+      },
+      req
+    ).catch(err => console.error('Failed to log activity:', err));
 
     res.json({
       success: true,

@@ -1,4 +1,5 @@
 import pool from "../../config/database.js";
+import { logActivity } from "../../routes/activityLogs.js";
 
 export const callTicket = async (req, res) => {
   const { ticketNumber } = req.body;
@@ -88,6 +89,39 @@ export const callTicket = async (req, res) => {
     
     console.log(`🔍 [callTicket] User ${userId} (${username}) called ticket ${ticketNumber}`);
     console.log(`📋 [callTicket] Verification:`, verify[0]);
+    
+    // Log activity
+    const [userDetails] = await connection.query(
+      "SELECT admin_id, role FROM users WHERE id = ?",
+      [userId]
+    );
+    
+    if (userDetails.length > 0) {
+      const actorInfo = userDetails[0].role === 'receptionist' 
+        ? `Receptionist (${username})` 
+        : userDetails[0].role === 'user' 
+          ? `User (${username})`
+          : username;
+      
+      console.log('🎯 [callTicket] Logging activity...');
+      await logActivity(
+        userDetails[0].admin_id,
+        userId,
+        userDetails[0].role,
+        'TICKET_CALLED',
+        `${actorInfo} called ticket ${ticketNumber} to counter ${counterNo}`,
+        {
+          ticket_id: ticketNumber,
+          ticket_number: ticketNumber,
+          counter: counterNo,
+          called_by: username,
+          caller_role: userDetails[0].role,
+          call_count: newCallCount
+        },
+        req
+      ).catch(err => console.error('❌ [callTicket] Failed to log activity:', err));
+      console.log('✅ [callTicket] Activity logged successfully');
+    }
     
     res.json({
       success: true,
