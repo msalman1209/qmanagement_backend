@@ -49,6 +49,7 @@ import counterDisplayRoutes from "./routes/counter-display.js"
 import sessionsRoutes from "./routes/sessions.js"
 import activityLogsRoutes from "./routes/activityLogs.js"
 import timezoneRoutes from "./routes/timezoneRoutes.js"
+import buttonSettingsRoutes from "./routes/buttonSettings.js"
 import path from "path"
 import { fileURLToPath } from "url"
 
@@ -104,6 +105,7 @@ app.use("/api/counter-display", counterDisplayRoutes)
 app.use("/api/sessions", sessionsRoutes)
 app.use("/api/activity-logs", activityLogsRoutes)
 app.use("/api", timezoneRoutes)
+app.use("/api/button-settings", buttonSettingsRoutes)
 
 // Health check route
 app.get("/api/health", (req, res) => {
