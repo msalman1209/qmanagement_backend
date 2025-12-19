@@ -2,7 +2,8 @@ import pool from '../../config/database.js';
 
 export const getAllServices = async (req, res) => {
   try {
-    const admin_id = req.user.id; // Get admin_id from authenticated user
+    // Get admin_id: use admin_id for users with admin permissions, otherwise use user's own id
+    const admin_id = req.user.admin_id || req.user.id;
     
     const [services] = await pool.query(
       `SELECT id, service_name, service_name_arabic, initial_ticket, color, logo_url, 

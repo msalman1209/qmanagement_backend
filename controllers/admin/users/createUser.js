@@ -2,9 +2,9 @@ import pool from "../../../config/database.js"
 import bcryptjs from "bcryptjs"
 
 export const createUser = async (req, res) => {
-  const { username, email, password, role, admin_id: bodyAdminId, status } = req.body
+  const { username, email, password, role, admin_id: bodyAdminId, status, permissions } = req.body
 
-  console.log('🔍 [CREATE USER] Request received:', { username, email, role, bodyAdminId, requestedBy: req.user?.username });
+  console.log('🔍 [CREATE USER] Request received:', { username, email, role, bodyAdminId, permissions, requestedBy: req.user?.username });
 
   if (!username || !email || !password) {
     return res.status(400).json({ success: false, message: "All fields required" })
@@ -13,7 +13,8 @@ export const createUser = async (req, res) => {
   // Decide which admin owns this user
   let adminIdToUse = null
   if (req.user?.role === "admin") {
-    adminIdToUse = req.user.id
+    // Use admin_id for users with admin permissions, otherwise use user's own id
+    adminIdToUse = req.user.admin_id || req.user.id
   } else if (req.user?.role === "super_admin" && bodyAdminId) {
     adminIdToUse = bodyAdminId
   }
@@ -102,9 +103,12 @@ export const createUser = async (req, res) => {
 
     console.log('✅ [CREATE USER] All checks passed. Creating user...');
 
+    // Prepare permissions JSON
+    const permissionsJson = permissions ? JSON.stringify(permissions) : null;
+
     await connection.query(
-      "INSERT INTO users (username, email, password, role, admin_id, status) VALUES (?, ?, ?, ?, ?, ?)",
-      [username, email, hashedPassword, userRole, adminIdToUse, status || "active"]
+      "INSERT INTO users (username, email, password, role, admin_id, status, permissions) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [username, email, hashedPassword, userRole, adminIdToUse, status || "active", permissionsJson]
     )
 
     await connection.commit()

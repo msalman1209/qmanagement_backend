@@ -5,7 +5,7 @@ import bcryptjs from "bcryptjs"
 // Accepts: username, email, password (hashed), status, role, admin_id (super_admin only)
 export const updateUser = async (req, res) => {
   const { userId } = req.params
-  const { username, email, password, status, role, admin_id } = req.body || {}
+  const { username, email, password, status, role, admin_id, permissions } = req.body || {}
 
   const connection = await pool.getConnection()
   try {
@@ -41,6 +41,10 @@ export const updateUser = async (req, res) => {
     if (typeof admin_id !== 'undefined' && req.user?.role === 'super_admin') {
       sets.push("admin_id = ?")
       params.push(admin_id)
+    }
+    if (typeof permissions !== 'undefined') {
+      sets.push("permissions = ?")
+      params.push(JSON.stringify(permissions))
     }
 
     if (sets.length === 0) {

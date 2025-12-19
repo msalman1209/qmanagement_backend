@@ -4,7 +4,8 @@ import { logActivity } from '../../routes/activityLogs.js';
 export const deleteService = async (req, res) => {
   try {
     const { id } = req.params;
-    const admin_id = req.user.id; // Get admin_id from authenticated user
+    // Get admin_id: use admin_id for users with admin permissions, otherwise use user's own id
+    const admin_id = req.user.admin_id || req.user.id;
 
     // Get service details before deleting
     const [services] = await pool.query('SELECT service_name FROM services WHERE id = ? AND admin_id = ?', [id, admin_id]);
