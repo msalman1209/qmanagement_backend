@@ -13,7 +13,8 @@ import {
   deleteLicense,
   getLicenseReport,
   uploadLicenseLogo,
-  getLicenseByAdminId
+  getLicenseByAdminId,
+  getLicenseDetails
 } from "../controllers/license/index.js"
 
 const __filename = fileURLToPath(import.meta.url)
@@ -64,8 +65,11 @@ const optionalUpload = (req, res, next) => {
 
 const router = express.Router()
 
-// Get admin info (Super Admin only)
-router.get("/admin/:adminId", authenticateToken, authorize("super_admin"), getAdminInfo)
+// Get license details for current user (All authenticated users)
+router.get("/details", authenticateToken, getLicenseDetails)
+
+// Get admin info (Super Admin and Admin can get their own info)
+router.get("/admin/:adminId", authenticateToken, authorize("super_admin", "admin"), getAdminInfo)
 
 // Get all admins (Super Admin only)
 router.get("/admins", authenticateToken, authorize("super_admin"), getAllAdmins)

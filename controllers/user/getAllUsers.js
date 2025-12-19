@@ -29,9 +29,25 @@ export const getAllUsers = async (req, res) => {
       admin_id = adminRows[0].id;
     }
 
-    // Get all users under the same admin (excluding current user)
+    // Get all users under the same admin (excluding current user) with login status
     const [users] = await pool.query(
-      'SELECT id, username, email, admin_id FROM users WHERE admin_id = ? AND id != ? ORDER BY username',
+      `SELECT 
+        u.id, 
+        u.username, 
+        u.email, 
+        u.admin_id, 
+        u.role, 
+        u.status,
+        CASE 
+          WHEN s.session_id IS NOT NULL THEN 1 
+          ELSE 0 
+        END as isLoggedIn
+      FROM users u
+      LEFT JOIN user_sessions s ON u.id = s.user_id 
+        AND s.active = 1 
+        AND s.expires_at > NOW()
+      WHERE u.admin_id = ? AND u.id != ? 
+      ORDER BY u.username`,
       [admin_id, userId]
     );
 
