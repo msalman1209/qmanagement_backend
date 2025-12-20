@@ -3,6 +3,11 @@ import { logActivity } from '../../routes/activityLogs.js';
 
 export const updateService = async (req, res) => {
   try {
+    console.log('📝 Update Service Request:');
+    console.log('Body:', req.body);
+    console.log('File:', req.file);
+    console.log('Params:', req.params);
+    
     const { id } = req.params;
     const { service_name, service_name_arabic, initial_ticket, color, admin_id } = req.body;
     // Use admin_id from request body if provided, otherwise use logged-in user's admin_id (or id for actual admins)
@@ -10,6 +15,11 @@ export const updateService = async (req, res) => {
     
     // Get logo path from uploaded file if new file is uploaded
     const logo_url = req.file ? `/uploads/services/${req.file.filename}` : undefined;
+    
+    console.log('💾 Updating database:');
+    console.log('- Service ID:', id);
+    console.log('- New Logo URL:', logo_url);
+    console.log('- Admin ID:', finalAdminId);
 
     let query = `UPDATE services SET service_name = ?, service_name_arabic = ?, initial_ticket = ?, color = ?`;
     let params = [service_name, service_name_arabic, initial_ticket, color];

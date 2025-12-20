@@ -31,21 +31,40 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { 
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+    files: 1 // Only one file allowed
+  },
   fileFilter: (req, file, cb) => {
+    console.log('📤 Backend received file:', file.originalname, file.mimetype, file.size);
+    
     // If no file provided, skip validation
     if (!file) {
       return cb(null, false);
     }
     
-    const allowedTypes = /jpeg|jpg|png|gif|svg|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    // Allowed MIME types
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/gif',
+      'image/svg+xml',
+      'image/webp'
+    ];
+    
+    // Allowed extensions
+    const allowedExtensions = /\.(jpg|jpeg|png|gif|svg|webp)$/i;
+    
+    const extname = allowedExtensions.test(file.originalname);
+    const mimetype = allowedMimeTypes.includes(file.mimetype);
 
     if (mimetype && extname) {
+      console.log('✅ File validation passed');
       return cb(null, true);
     } else {
-      cb(null, false); // Skip file instead of throwing error
+      console.log('❌ File validation failed - Invalid type');
+      return cb(new Error('Invalid file type. Only JPG, PNG, GIF, SVG, and WebP images are allowed.'));
     }
   }
 });
@@ -53,13 +72,31 @@ const upload = multer({
 // Middleware to handle optional file upload
 const optionalUpload = (req, res, next) => {
   upload.single('logo')(req, res, (err) => {
-    // Ignore multer errors for optional uploads
     if (err instanceof multer.MulterError) {
-      // Skip multer errors
-      return next();
+      console.error('❌ Multer error:', err.message);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File too large. Maximum size is 5MB.'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Upload error: ${err.message}`
+      });
     } else if (err) {
-      // Skip other errors too
-      return next();
+      console.error('❌ File validation error:', err.message);
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
+    
+    // File uploaded successfully or no file provided
+    if (req.file) {
+      console.log('✅ File uploaded successfully:', req.file.filename);
+    } else {
+      console.log('ℹ️ No file uploaded (optional)');
     }
     next();
   });
