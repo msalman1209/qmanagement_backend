@@ -63,8 +63,10 @@ export const validateAdminSession = async (token) => {
   try {
     // Verify JWT
     const decoded = jwt.verify(token, JWT_SECRET)
+    
+    console.log('🔍 [validateAdminSession] Decoded token:', { id: decoded.id, role: decoded.role })
 
-    // Check if session exists and is active
+    // Check if session exists and is active in admin_sessions table
     const query = `
       SELECT session_id, admin_id, username, role, expires_at, active
       FROM admin_sessions
@@ -72,9 +74,55 @@ export const validateAdminSession = async (token) => {
     `
 
     const [sessions] = await pool.query(query, [token])
+    
+    console.log('🔍 [validateAdminSession] Admin sessions found:', sessions.length)
 
     if (sessions.length === 0) {
-      return { valid: false, message: 'Invalid or expired session' }
+      // Session not found in admin_sessions, check if it's a user with admin permissions
+      console.log('⚠️  [validateAdminSession] Session not found in admin_sessions. Checking users table for user ID:', decoded.id)
+      
+      // Query users table
+      const [userFromDb] = await pool.query('SELECT id, username, admin_id, role, permissions FROM users WHERE id = ?', [decoded.id])
+      
+      console.log('🔍 [validateAdminSession] Users found:', userFromDb.length)
+      
+      if (userFromDb.length === 0) {
+        console.log('❌ [validateAdminSession] User not found in database')
+        return { valid: false, message: 'Invalid or expired session' }
+      }
+      
+      const user = userFromDb[0]
+      
+      // Parse permissions
+      let userPermissions = user.permissions;
+      if (typeof userPermissions === 'string') {
+        try {
+          userPermissions = JSON.parse(userPermissions);
+        } catch (e) {
+          console.log('❌ [validateAdminSession] Failed to parse permissions')
+          userPermissions = null;
+        }
+      }
+      
+      console.log('🔍 [validateAdminSession] User permissions:', userPermissions)
+      
+      // Check if user has admin access
+      if (!userPermissions || !userPermissions.canAccessDashboard) {
+        console.log('❌ [validateAdminSession] User does not have admin access permission')
+        return { valid: false, message: 'Invalid or expired session' }
+      }
+      
+      console.log('✅ [validateAdminSession] User with admin permissions validated:', { id: user.id, username: user.username, admin_id: user.admin_id })
+      
+      return {
+        valid: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: 'admin', // Return as admin role
+          admin_id: user.admin_id // Important: include admin_id
+        }
+      }
     }
 
     // Update last activity
@@ -82,17 +130,34 @@ export const validateAdminSession = async (token) => {
       'UPDATE admin_sessions SET last_activity = NOW() WHERE session_id = ?',
       [sessions[0].session_id]
     )
+    
+    console.log('✅ [validateAdminSession] Admin session validated from admin_sessions table')
+
+    // Check if this is a user from users table (not admin table)
+    // If yes, get their actual admin_id from users table
+    const [userCheck] = await pool.query('SELECT admin_id FROM users WHERE id = ?', [sessions[0].admin_id])
+    
+    let actualAdminId = sessions[0].admin_id;
+    let isUserWithAdminPermissions = false;
+    if (userCheck.length > 0 && userCheck[0].admin_id) {
+      actualAdminId = userCheck[0].admin_id;
+      isUserWithAdminPermissions = true;
+      console.log('🔍 [validateAdminSession] User with admin permissions - using admin_id:', actualAdminId, 'instead of user id:', sessions[0].admin_id);
+    }
 
     return {
       valid: true,
       user: {
         id: sessions[0].admin_id,
         username: sessions[0].username,
-        role: sessions[0].role
+        role: sessions[0].role,
+        email: sessions[0].email,
+        // Include admin_id for users with admin permissions
+        admin_id: isUserWithAdminPermissions ? actualAdminId : sessions[0].admin_id
       }
     }
   } catch (error) {
-    console.error('Error validating admin session:', error)
+    console.error('❌ [validateAdminSession] Error:', error.message)
     return { valid: false, message: 'Session validation failed' }
   }
 }

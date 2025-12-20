@@ -5,8 +5,11 @@ export const getReports = async (req, res) => {
 
   const connection = await pool.getConnection()
   try {
-    let query = "SELECT * FROM tickets WHERE 1=1"
-    const params = []
+    // Get admin_id: use admin_id for users with admin permissions, otherwise use user's own id
+    const admin_id = req.user.admin_id || req.user.id;
+    
+    let query = "SELECT * FROM tickets WHERE admin_id = ?"
+    const params = [admin_id]
 
     if (from_date && to_date) {
       query += " AND DATE(date) BETWEEN ? AND ?"

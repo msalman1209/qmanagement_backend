@@ -42,9 +42,32 @@ export const verifyCurrentSession = async (req, res) => {
     // Check license for admins
     if (decoded.role === 'admin') {
       const { verifyAdminLicense } = await import('../../utils/licenseUtils.js')
-      const licenseCheck = await verifyAdminLicense(sessionValidation.user.id)
+      
+      // If user has admin_id (user with admin permissions), skip license check
+      // They are not actual admins, just users with admin-level permissions
+      // Their access is controlled by their admin, not by a separate license
+      if (sessionValidation.user.admin_id && sessionValidation.user.admin_id !== sessionValidation.user.id) {
+        console.log('⚠️ [verifySession] User with admin permissions detected - skipping license check');
+        console.log('🔍 [verifySession] User data:', { id: sessionValidation.user.id, admin_id: sessionValidation.user.admin_id });
+        return res.status(200).json({
+          success: true,
+          user: sessionValidation.user,
+          license_valid: true,
+          message: "Session is valid"
+        });
+      }
+      
+      // For actual admins, check their license
+      const adminIdToCheck = sessionValidation.user.id;
+      
+      console.log('🔍 [verifySession] Checking license for actual admin ID:', adminIdToCheck);
+      
+      const licenseCheck = await verifyAdminLicense(adminIdToCheck);
+      
+      console.log('🔍 [verifySession] License check result:', { valid: licenseCheck.valid, message: licenseCheck.message });
       
       if (!licenseCheck.valid) {
+        console.log('❌ [verifySession] License check failed, returning 403');
         return res.status(403).json({
           success: false,
           message: licenseCheck.message,
@@ -53,6 +76,7 @@ export const verifyCurrentSession = async (req, res) => {
         })
       }
 
+      console.log('✅ [verifySession] License check passed, returning 200');
       return res.status(200).json({
         success: true,
         user: sessionValidation.user,

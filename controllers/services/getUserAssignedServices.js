@@ -28,7 +28,8 @@ export const getUserAssignedServices = async (req, res) => {
     }
 
     // Otherwise, get all users with their assigned services (admin view)
-    const admin_id = req.user.id;
+    // Get admin_id: use admin_id for users with admin permissions, otherwise use user's own id
+    const admin_id = req.user.admin_id || req.user.id;
 
     // Get only users who have assigned services (with non-null services)
     const [assignments] = await pool.query(`
