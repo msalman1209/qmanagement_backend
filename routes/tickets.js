@@ -10,6 +10,7 @@ import {
   lockTicket,
   getReports,
 } from "../controllers/tickets/index.js"
+import { freshTicket } from "../controllers/user/freshTicket.js"
 
 const router = express.Router()
 
@@ -31,10 +32,13 @@ router.put("/:ticketId", authenticateToken, authorize("admin", "user"), updateTi
 // Transfer ticket
 router.post("/:ticketId/transfer", authenticateToken, authorize("user", "admin"), transferTicket)
 
+// Fresh ticket - Only for Super Admin
+router.post("/:ticketId/fresh", authenticateToken, authorize("super_admin"), freshTicket)
+
 // Call next ticket
 router.post("/call-next", authenticateToken, authorize("user"), callNextTicket)
 
 // Lock/Unlock ticket
-router.post("/:ticketId/lock", authenticateToken, authorize("user"), lockTicket)
+router.post("/:ticketId/lock", authenticateToken, authorize("user", "super_admin"), lockTicket)
 
 export default router

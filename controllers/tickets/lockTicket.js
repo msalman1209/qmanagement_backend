@@ -2,7 +2,9 @@ import pool from "../../config/database.js"
 
 export const lockTicket = async (req, res) => {
   const { ticketId } = req.params
-  const { user_id, lock } = req.body
+  const { user_id, lock, adminId } = req.body
+  
+  console.log('🔓 [lockTicket] Request:', { ticketId, user_id, lock, adminId })
 
   const connection = await pool.getConnection()
   try {
@@ -30,9 +32,12 @@ export const lockTicket = async (req, res) => {
     // Get username if locking
     let username = null;
     if (lock && user_id) {
+      // For Super Admin mode, get user details including admin_id validation
       const [users] = await connection.query(
-        "SELECT username FROM users WHERE id = ?",
-        [user_id]
+        adminId 
+          ? "SELECT username FROM users WHERE id = ? AND admin_id = ?"
+          : "SELECT username FROM users WHERE id = ?",
+        adminId ? [user_id, adminId] : [user_id]
       );
       username = users.length > 0 ? users[0].username : null;
       

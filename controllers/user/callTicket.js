@@ -2,7 +2,7 @@ import pool from "../../config/database.js";
 import { logActivity } from "../../routes/activityLogs.js";
 
 export const callTicket = async (req, res) => {
-  const { ticketNumber } = req.body;
+  const { ticketNumber, adminId, isSuperAdmin } = req.body;
   const userId = req.user.id;
 
   if (!ticketNumber) {
@@ -20,10 +20,20 @@ export const callTicket = async (req, res) => {
       [userId]
     );
 
-    const counterNo = sessions.length > 0 ? sessions[0].counter_no : null;
+    let counterNo = sessions.length > 0 ? sessions[0].counter_no : null;
 
-    // ✅ CRITICAL: Prevent calling tickets without valid counter
-    if (!counterNo || counterNo === null || counterNo === 'null' || counterNo === '') {
+    // ✅ BYPASS counter check for Super Admin mode
+    if (isSuperAdmin && adminId) {
+      console.log('🔵 Super Admin mode detected - bypassing counter requirement');
+      
+      // Extract counter from ticket number (e.g., G-2 → counter is "G")
+      const ticketPrefix = ticketNumber.split('-')[0];
+      counterNo = ticketPrefix || 'ADMIN'; // Use ticket prefix as counter
+      
+      console.log(`🎯 Super Admin calling ticket ${ticketNumber}, using counter: ${counterNo}`);
+    }
+    // ✅ CRITICAL: Prevent calling tickets without valid counter (only for regular users)
+    else if (!counterNo || counterNo === null || counterNo === 'null' || counterNo === '') {
       return res.status(400).json({
         success: false,
         message: "❌ You must be assigned to a counter before calling tickets!\n\nPlease log out and log in again, then select a counter.",
@@ -96,6 +106,9 @@ export const callTicket = async (req, res) => {
       [userId]
     );
     
+    // Determine the actual admin_id (for Super Admin mode or regular user)
+    const actualAdminId = isSuperAdmin && adminId ? adminId : (userDetails.length > 0 ? userDetails[0].admin_id : null);
+    
     if (userDetails.length > 0) {
       const actorInfo = userDetails[0].role === 'receptionist' 
         ? `Receptionist (${username})` 
@@ -105,7 +118,7 @@ export const callTicket = async (req, res) => {
       
       console.log('🎯 [callTicket] Logging activity...');
       await logActivity(
-        userDetails[0].admin_id,
+        actualAdminId || userDetails[0].admin_id,
         userId,
         userDetails[0].role,
         'TICKET_CALLED',
@@ -126,7 +139,8 @@ export const callTicket = async (req, res) => {
     res.json({
       success: true,
       message: "Ticket called successfully",
-      counterNo
+      counterNo,
+      adminId: actualAdminId
     });
   } catch (error) {
     console.error("[callTicket] Error:", error);
