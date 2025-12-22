@@ -139,6 +139,17 @@ export const userLogin = async (req, res) => {
       permissions_type: typeof user.permissions
     });
 
+    // Parse permissions from database
+    let userPermissions = user.permissions;
+    if (typeof userPermissions === 'string') {
+      try {
+        userPermissions = JSON.parse(userPermissions);
+      } catch (e) {
+        console.error('Failed to parse user permissions:', e);
+        userPermissions = {};
+      }
+    }
+
     res.json({
       success: true,
       token: sessionToken,
@@ -148,7 +159,7 @@ export const userLogin = async (req, res) => {
         username: user.username,
         role: user.role || "user",
         admin_id: user.admin_id,
-        permissions: user.permissions,  // ✅ Include permissions in response
+        permissions: userPermissions || {},  // ✅ Include parsed permissions in response
       },
       needs_counter_selection: user.role === 'user' || !user.role,  // Flag to show counter modal
     })

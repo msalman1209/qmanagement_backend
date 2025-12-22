@@ -102,6 +102,17 @@ export const receptionistLogin = async (req, res) => {
       return res.status(500).json({ success: false, message: "Failed to create session" })
     }
 
+    // Parse permissions from database
+    let userPermissions = user.permissions;
+    if (typeof userPermissions === 'string') {
+      try {
+        userPermissions = JSON.parse(userPermissions);
+      } catch (e) {
+        console.error('Failed to parse user permissions:', e);
+        userPermissions = {};
+      }
+    }
+
     res.json({
       success: true,
       token: sessionResult.token,
@@ -111,6 +122,7 @@ export const receptionistLogin = async (req, res) => {
         username: user.username,
         role: 'receptionist',
         admin_id: user.admin_id,
+        permissions: userPermissions || {},
       },
     })
   } finally {
