@@ -13,20 +13,20 @@ export const adminLogin = async (req, res) => {
 
   const connection = await pool.getConnection()
   try {
-    // Check in admin table with role 'admin'
+    // Check in admin table with role 'admin' (support both email and username)
     const [admins] = await connection.query(
-      "SELECT * FROM admin WHERE email = ? AND role = 'admin'",
-      [email]
+      "SELECT * FROM admin WHERE (email = ? OR username = ?) AND role = 'admin'",
+      [email, email]
     )
 
     let admin = null;
     let isUserWithAdminPermissions = false;
 
     if (admins.length === 0) {
-      // 🔍 Admin not found in admin table, check users table with admin permissions
+      // 🔍 Admin not found in admin table, check users table with admin permissions (support both email and username)
       const [users] = await connection.query(
-        "SELECT * FROM users WHERE email = ?",
-        [email]
+        "SELECT * FROM users WHERE email = ? OR username = ?",
+        [email, email]
       )
 
       if (users.length === 0) {
