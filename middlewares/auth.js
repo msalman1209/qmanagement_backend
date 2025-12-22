@@ -208,3 +208,63 @@ export const checkServiceLimits = async (req, res, next) => {
     })
   }
 }
+
+/**
+ * Check if user has specific permission
+ */
+export const checkPermission = (permission) => {
+  return async (req, res, next) => {
+    try {
+      // Admin and super_admin have all permissions
+      if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+        return next()
+      }
+
+      // Get user permissions from database
+      const pool = (await import('../config/database.js')).default
+      const [users] = await pool.query(
+        'SELECT permissions FROM users WHERE id = ?',
+        [req.user.id]
+      )
+
+      if (!users || users.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        })
+      }
+
+      let permissions = users[0].permissions
+      
+      // Parse permissions if it's a string
+      if (typeof permissions === 'string') {
+        try {
+          permissions = JSON.parse(permissions)
+        } catch (e) {
+          console.error('Failed to parse permissions:', e)
+          permissions = null
+        }
+      }
+
+      // Check if user has the required permission
+      if (!permissions || !permissions[permission]) {
+        return res.status(403).json({
+          success: false,
+          message: `You don't have permission to ${permission.replace('can', '').replace(/([A-Z])/g, ' $1').toLowerCase()}`,
+          missing_permission: permission
+        })
+      }
+
+      // Attach permissions to request for later use
+      req.permissions = permissions
+      next()
+    } catch (error) {
+      console.error('Permission check error:', error)
+      return res.status(500).json({
+        success: false,
+        message: 'Error checking permissions',
+        error: error.message
+      })
+    }
+  }
+}

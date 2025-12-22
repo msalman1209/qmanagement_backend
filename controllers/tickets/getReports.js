@@ -73,12 +73,21 @@ export const getReports = async (req, res) => {
 
     // Add admin filtering if column exists
     if (hasAdminId) {
-      if (req.user && req.user.role === 'admin' && req.user.id) {
+      if (req.user && req.user.role === 'admin') {
+        // For admin users, use their admin_id (or id if they ARE the admin)
+        const effectiveAdminId = req.user.admin_id || req.user.id;
         query += ' AND u.admin_id = ? ';
-        queryParams.push(req.user.id);
+        queryParams.push(effectiveAdminId);
+        console.log('Admin filter - Using admin_id:', effectiveAdminId);
       } else if (adminId && req.user && req.user.role === 'super_admin') {
         query += ' AND u.admin_id = ? ';
         queryParams.push(adminId);
+        console.log('Super admin filter - Using provided adminId:', adminId);
+      } else if (req.user && req.user.admin_id) {
+        // For any other role with admin_id (like user, receptionist)
+        query += ' AND u.admin_id = ? ';
+        queryParams.push(req.user.admin_id);
+        console.log('User filter - Using admin_id:', req.user.admin_id);
       }
     }
 

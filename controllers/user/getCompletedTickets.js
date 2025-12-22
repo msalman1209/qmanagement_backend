@@ -68,7 +68,7 @@ export const getCompletedTickets = async (req, res) => {
       representativeId: ticket.representative_id
     }))
 
-    console.log(`✅ Found ${formattedTickets.length} completed tickets`)
+    console.log(`✅ Found ${formattedTickets.serviceTime} completed tickets`)
     if (formattedTickets.length > 0) {
       console.log('📤 Sample response:', JSON.stringify(formattedTickets[0], null, 2))
     }

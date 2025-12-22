@@ -1,5 +1,5 @@
 import express from "express"
-import { authenticateToken, authorize } from "../middlewares/auth.js"
+import { authenticateToken, authorize, checkPermission } from "../middlewares/auth.js"
 import {
   getUserDashboard,
   getPendingTickets,
@@ -39,14 +39,14 @@ router.post("/create-ticket-info", authenticateToken, authorize("admin"), create
 router.get("/ticket-info-users", authenticateToken, authorize("admin"), getTicketInfoUsers)
 router.delete("/:id", authenticateToken, authorize("admin"), deleteUser)
 
-// Get user dashboard data
-router.get("/dashboard", authenticateToken, getUserDashboard)
+// Get user dashboard data - requires canCallTickets permission
+router.get("/dashboard", authenticateToken, checkPermission('canCallTickets'), getUserDashboard)
 
 // Get user's assigned service tickets
 router.get("/tickets/assigned", authenticateToken, getUserAssignedTickets)
 
-// Call a ticket
-router.post("/call-ticket", authenticateToken, callTicket)
+// Call a ticket - requires canCallTickets permission
+router.post("/call-ticket", authenticateToken, checkPermission('canCallTickets'), callTicket)
 
 // Get called tickets (today only)
 router.get("/called-tickets/today", authenticateToken, getCalledTicketsToday)
@@ -57,8 +57,8 @@ router.get("/called-tickets", authenticateToken, getCalledTickets)
 // Get pending tickets
 router.get("/tickets/pending", authenticateToken, getPendingTickets)
 
-// Get completed tickets
-router.get("/tickets/completed", authenticateToken, getCompletedTickets)
+// Get completed tickets - requires canCreateTickets permission
+router.get("/tickets/completed", authenticateToken, checkPermission('canCreateTickets'), getCompletedTickets)
 
 // Get user profile
 router.get("/profile", authenticateToken, getUserProfile)

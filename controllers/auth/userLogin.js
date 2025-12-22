@@ -31,6 +31,14 @@ export const userLogin = async (req, res) => {
     // Users can login from any endpoint based on their assigned role
     const userRole = user.role || 'user';
     
+    console.log('🔍 [userLogin] User found:', {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      permissions_type: typeof user.permissions,
+      permissions_raw: user.permissions
+    });
+    
     const passwordMatch = await bcryptjs.compare(password, user.password)
 
     if (!passwordMatch) {
@@ -123,6 +131,14 @@ export const userLogin = async (req, res) => {
       sessionToken = tempToken;
     }
 
+    console.log('✅ [userLogin] Login successful, sending response:', {
+      user_id: user.id,
+      username: user.username,
+      role: user.role,
+      has_permissions: !!user.permissions,
+      permissions_type: typeof user.permissions
+    });
+
     res.json({
       success: true,
       token: sessionToken,
@@ -132,6 +148,7 @@ export const userLogin = async (req, res) => {
         username: user.username,
         role: user.role || "user",
         admin_id: user.admin_id,
+        permissions: user.permissions,  // ✅ Include permissions in response
       },
       needs_counter_selection: user.role === 'user' || !user.role,  // Flag to show counter modal
     })

@@ -20,6 +20,7 @@ export const getAdminUsers = async (req, res) => {
         u.admin_id, 
         u.role, 
         u.status,
+        u.permissions,
         CASE 
           WHEN s.session_id IS NOT NULL THEN 1 
           ELSE 0 
@@ -34,6 +35,16 @@ export const getAdminUsers = async (req, res) => {
     );
 
     console.log(`[getAdminUsers] Fetched ${users.length} users for admin ${adminId}`);
+    
+    // 🔍 Debug: Log first user's permissions
+    if (users.length > 0) {
+      console.log('📋 [getAdminUsers] Sample user permissions:', {
+        id: users[0].id,
+        username: users[0].username,
+        permissions_type: typeof users[0].permissions,
+        permissions_value: users[0].permissions
+      });
+    }
 
     res.json({
       success: true,

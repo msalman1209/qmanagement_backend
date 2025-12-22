@@ -152,7 +152,8 @@ export const adminLogin = async (req, res) => {
         username: admin.username,
         role: "admin",
         admin_id: effectiveAdminId,
-        is_user_with_admin_permissions: isUserWithAdminPermissions
+        is_user_with_admin_permissions: isUserWithAdminPermissions,
+        permissions: admin.permissions  // ✅ Include permissions in response
       },
     })
   } finally {

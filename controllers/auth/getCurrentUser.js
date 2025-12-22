@@ -12,10 +12,18 @@ export const getCurrentUser = async (req, res) => {
       user = result[0]
     } else {
       const [result] = await connection.query(
-        "SELECT id, email, username, admin_id FROM users WHERE id = ?",
+        "SELECT id, email, username, admin_id, permissions FROM users WHERE id = ?",
         [req.user.id]
       )
       user = result[0]
+      
+      // 🔍 Debug: Log permissions being returned
+      console.log('📋 [getCurrentUser] User permissions:', {
+        id: user.id,
+        username: user.username,
+        permissions_type: typeof user.permissions,
+        permissions_value: user.permissions
+      });
     }
 
     if (!user) {
