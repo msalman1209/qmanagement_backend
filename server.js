@@ -73,6 +73,7 @@ const corsOptions = {
     
 
     if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('✅ CORS allowed origin:', origin);
       callback(null, true);
     } else {
       console.log('❌ CORS blocked origin:', origin);
@@ -87,7 +88,9 @@ const corsOptions = {
 
 // Middleware
 app.use(cors(corsOptions))
-app.use(express.json())
+// Increase body size limits for large file uploads (videos)
+app.use(express.json({ limit: '500mb' }))
+app.use(express.urlencoded({ limit: '500mb', extended: true }))
 
 // Serve static files for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
