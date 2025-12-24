@@ -289,12 +289,26 @@ export const uploadLogo = async (req, res) => {
 // Upload video
 export const uploadVideo = async (req, res) => {
   try {
-    console.log('uploadVideo req.file:', req.file);
+    console.log('🎬 uploadVideo controller called');
+    console.log('📦 req.file:', req.file ? {
+      filename: req.file.filename,
+      size: (req.file.size / (1024 * 1024)).toFixed(2) + 'MB',
+      mimetype: req.file.mimetype,
+      path: req.file.path
+    } : 'MISSING');
+    console.log('📋 req.body:', req.body);
+    console.log('👤 req.user:', req.user ? {
+      id: req.user.id,
+      role: req.user.role,
+      admin_id: req.user.admin_id
+    } : 'MISSING');
+    
     if (!req.file) {
+      console.error('❌ No file in request!');
       return res.status(400).json({
         success: false,
         message: 'No file uploaded',
-        debug: 'req.file is undefined',
+        debug: 'req.file is undefined - multer did not process the file',
       });
     }
 
@@ -326,12 +340,14 @@ export const uploadVideo = async (req, res) => {
     const [configs] = await pool.query('SELECT id FROM counter_display_config WHERE admin_id = ?', [targetAdminId]);
     
     if (configs.length === 0) {
+      console.log('📝 Creating new config for admin:', targetAdminId);
       // Insert default config first
       await pool.query(
         'INSERT INTO counter_display_config (admin_id, video_url, content_type, ticker_content) VALUES (?, ?, ?, ?)',
         [targetAdminId, videoUrl, 'video', 'Welcome to HAPPINESS LOUNGE BUSINESSMEN SERVICES L.L.C']
       );
     } else {
+      console.log('📝 Updating existing config for admin:', targetAdminId);
       // Update existing config
       await pool.query(
         'UPDATE counter_display_config SET video_url = ?, content_type = ? WHERE admin_id = ?',
@@ -339,6 +355,7 @@ export const uploadVideo = async (req, res) => {
       );
     }
 
+    console.log('✅ Video uploaded successfully:', videoUrl);
     res.json({
       success: true,
       message: 'Video uploaded successfully',
