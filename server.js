@@ -129,8 +129,15 @@ const PORT = process.env.PORT || 5000
 
 // Initialize DB then start server
 setupDatabase().then(() => {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`\n🚀 Server is running on port ${PORT}`)
     console.log(`📡 Health check: http://localhost:${PORT}/api/health\n`)
   })
+  
+  // Increase timeout for large file uploads
+  server.timeout = 600000; // 10 minutes
+  server.keepAliveTimeout = 650000; // 10 minutes + 50 seconds
+  server.headersTimeout = 660000; // 11 minutes
+  
+  console.log('⏱️  Server timeout set to 10 minutes for large file uploads\n')
 })

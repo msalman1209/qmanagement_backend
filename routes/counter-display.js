@@ -62,12 +62,23 @@ router.post('/upload-logo', authenticateToken, (req, res, next) => {
 
 // Upload video
 router.post('/upload-video', authenticateToken, (req, res, next) => {
+  // Increase timeout for large file uploads
+  req.setTimeout(600000); // 10 minutes
+  res.setTimeout(600000); // 10 minutes
+  
   upload.single('video')(req, res, (err) => {
     if (err) {
       console.error('Multer error (video):', err);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({
+          success: false,
+          message: 'File size is too large. Maximum allowed is 200MB.',
+          error: err.message
+        });
+      }
       return res.status(400).json({
         success: false,
-        message: 'File upload error',
+        message: 'File upload error: ' + err.message,
         error: err.message
       });
     }
