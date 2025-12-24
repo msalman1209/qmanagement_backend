@@ -87,13 +87,17 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires', 'X-Requested-With', 'Accept', 'Origin'],
   exposedHeaders: ['Content-Length', 'Content-Type'],
+  preflightContinue: false,
   maxAge: 86400 // 24 hours
 }
 
 // Middleware
 app.use(cors(corsOptions))
+
+// CRITICAL FIX: Handle OPTIONS preflight requests explicitly
+app.options('*', cors(corsOptions));
 
 // CRITICAL: Log RAW request details BEFORE any processing
 app.use((req, res, next) => {
