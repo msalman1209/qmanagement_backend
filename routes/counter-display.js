@@ -35,7 +35,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 500 * 1024 * 1024 // 500MB limit
+    fileSize: 250 * 1024 * 1024 // 250MB limit - increased for production
   }
 });
 
@@ -62,17 +62,26 @@ router.post('/upload-logo', authenticateToken, (req, res, next) => {
 
 // Upload video
 router.post('/upload-video', authenticateToken, (req, res, next) => {
+  console.log('🎬 Upload video route hit');
+  console.log('📦 Request headers:', {
+    'content-type': req.headers['content-type'],
+    'content-length': req.headers['content-length'],
+    'authorization': req.headers['authorization'] ? 'Present' : 'Missing'
+  });
+  
   // Increase timeout for large file uploads
   req.setTimeout(600000); // 10 minutes
   res.setTimeout(600000); // 10 minutes
   
   upload.single('video')(req, res, (err) => {
     if (err) {
-      console.error('Multer error (video):', err);
+      console.error('❌ Multer error (video):', err);
+      console.error('Error code:', err.code);
+      console.error('Error message:', err.message);
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).json({
           success: false,
-          message: 'File size is too large. Maximum allowed is 200MB.',
+          message: 'File size is too large. Maximum allowed is 500MB.',
           error: err.message
         });
       }
@@ -82,6 +91,15 @@ router.post('/upload-video', authenticateToken, (req, res, next) => {
         error: err.message
       });
     }
+    
+    console.log('✅ Multer processed successfully');
+    console.log('📁 File received:', req.file ? {
+      filename: req.file.filename,
+      size: (req.file.size / (1024 * 1024)).toFixed(2) + 'MB',
+      mimetype: req.file.mimetype
+    } : 'No file');
+    console.log('📋 Body data:', req.body);
+    
     next();
   });
 }, counterDisplayController.uploadVideo);
