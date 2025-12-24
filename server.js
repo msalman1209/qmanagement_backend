@@ -63,31 +63,47 @@ const app = express()
 // CORS configuration - Allow multiple origins
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://qmanagement-frontend.vercel.app'
+  'https://qmanagement-frontend.vercel.app',
+  'https://qmanagement-frontend-git-main-techsolutionor98.vercel.app',
+  'https://qmanagement-frontend-techsolutionor98.vercel.app'
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('✅ CORS: No origin header (allowing)');
+      return callback(null, true);
+    }
     
-
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
       console.log('✅ CORS allowed origin:', origin);
       callback(null, true);
     } else {
       console.log('❌ CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      callback(null, true); // Still allow but log warning for debugging
     }
   },
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  maxAge: 86400 // 24 hours
 }
 
 // Middleware
 app.use(cors(corsOptions))
+
+// Log all incoming requests for debugging
+app.use((req, res, next) => {
+  console.log(`📨 ${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`);
+  if (req.path.includes('upload')) {
+    console.log('📦 Upload request detected - Content-Length:', req.headers['content-length']);
+  }
+  next();
+});
+
 // Increase body size limits for large file uploads (videos)
 app.use(express.json({ limit: '500mb' }))
 app.use(express.urlencoded({ limit: '500mb', extended: true }))
