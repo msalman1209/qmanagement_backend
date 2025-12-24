@@ -95,12 +95,26 @@ const corsOptions = {
 // Middleware
 app.use(cors(corsOptions))
 
-// Log all incoming requests for debugging
+// CRITICAL: Log RAW request details BEFORE any processing
 app.use((req, res, next) => {
-  console.log(`📨 ${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`);
+  const timestamp = new Date().toISOString();
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`📨 [${timestamp}] ${req.method} ${req.path}`);
+  console.log(`${'='.repeat(60)}`);
+  console.log('🌐 Origin:', req.headers.origin || 'none');
+  console.log('📝 Content-Type:', req.headers['content-type'] || 'none');
+  console.log('📦 Content-Length:', req.headers['content-length'] || 'UNDEFINED/MISSING');
+  console.log('🔑 Authorization:', req.headers['authorization'] ? 'Present' : 'Missing');
+  console.log('🏠 Host:', req.headers['host']);
+  console.log('🔗 User-Agent:', req.headers['user-agent'] ? req.headers['user-agent'].substring(0, 50) + '...' : 'none');
+  
   if (req.path.includes('upload')) {
-    console.log('📦 Upload request detected - Content-Length:', req.headers['content-length']);
+    console.log('\n🎬 UPLOAD REQUEST DETECTED!');
+    console.log('   All headers:', JSON.stringify(req.headers, null, 2));
+    console.log('   HTTP Version:', req.httpVersion);
+    console.log('   Remote Address:', req.socket.remoteAddress);
   }
+  console.log(`${'='.repeat(60)}\n`);
   next();
 });
 
