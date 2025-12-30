@@ -5,6 +5,8 @@ import { getAdminTimezone, convertUTCToTimezone } from "../../utils/timezoneHelp
 export const createTicket = async (req, res) => {
   const { service_id, name, email, number, counter_no, user_id, admin_id } = req.body
 
+  console.log('📝 [createTicket] Request body:', req.body);
+
   if (!service_id) {
     return res.status(400).json({ success: false, message: "Service ID required" })
   }
@@ -67,9 +69,9 @@ export const createTicket = async (req, res) => {
 
     const [result] = await connection.query(
       `INSERT INTO tickets 
-       (ticket_id, service_name, counter_no, name, email, number, status, time, date, user_id, admin_id, created_at, last_updated)
-       VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?, ?)`,
-      [ticketId, service.service_name, counter_no || prefix, name || "", email || "", number || "", ticketTime, ticketDate, user_id || null, finalAdminId || null, createdAtTimestamp, createdAtTimestamp]
+       (ticket_id, service_name, counter_no, name, email, number, status, time, date, user_id, admin_id, created_at, last_updated, reason)
+       VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?)`,
+      [ticketId, service.service_name, counter_no || prefix, name || "", email || "", number || "", ticketTime, ticketDate, user_id || null, finalAdminId || null, createdAtTimestamp, createdAtTimestamp, ""]
     )
 
     // Log activity
@@ -108,6 +110,8 @@ export const createTicket = async (req, res) => {
       req
     ).catch(err => console.error('Failed to log activity:', err));
 
+    console.log('✅ [createTicket] Ticket created successfully:', ticketId);
+    
     res.status(201).json({ 
       success: true, 
       message: "Ticket created", 
@@ -121,6 +125,14 @@ export const createTicket = async (req, res) => {
         number: number || ""
       }
     })
+  } catch (error) {
+    console.error('❌ [createTicket] Error:', error);
+    console.error('❌ [createTicket] Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to create ticket", 
+      error: error.message 
+    });
   } finally {
     connection.release()
   }
