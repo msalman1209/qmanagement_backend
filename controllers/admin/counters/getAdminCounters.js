@@ -9,17 +9,17 @@ export const getAdminCounters = async (req, res) => {
 
   const connection = await pool.getConnection()
   try {
-    // Get total counters for this admin from admin table
-    const [adminData] = await connection.query(
-      `SELECT total_counters FROM admin WHERE id = ?`,
+    // Get max_counters for this admin from license table
+    const [licenseData] = await connection.query(
+      `SELECT max_counters FROM licenses WHERE admin_id = ? AND status = 'active' LIMIT 1`,
       [adminId]
     )
 
-    if (adminData.length === 0) {
-      return res.status(404).json({ success: false, message: "Admin not found" })
+    if (licenseData.length === 0) {
+      return res.status(404).json({ success: false, message: "No active license found for this admin" })
     }
 
-    const totalCounters = adminData[0].total_counters || 5 // Default 5 counters
+    const totalCounters = licenseData[0].max_counters || 5 // Default 5 counters
 
     // Get currently active counters (logged in users)
     const [activeCounters] = await connection.query(

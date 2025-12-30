@@ -28,27 +28,38 @@ export const getCompletedTickets = async (req, res) => {
         t.reason
       FROM tickets t
       WHERE t.representative_id = ?
-        AND t.calling_user_time IS NOT NULL
-        AND t.status IN ('Solved', 'Unattended', 'Not Solved', 'Pending')
+        AND t.status IN ('Solved', 'Unattended', 'Not Solved', 'Pending', 'Called')
         AND COALESCE(t.transfered, '0') IN ('', '0', 0)
     `
     const params = [userId]
 
-    // Add date filters if provided
+    // Add date filters if provided - filter on created_at
     if (start_date && end_date) {
       query += ` AND DATE(t.created_at) BETWEEN ? AND ?`
       params.push(start_date, end_date)
+      console.log(`🔍 Filtering: created_at BETWEEN '${start_date}' AND '${end_date}'`)
     } else if (start_date) {
       query += ` AND DATE(t.created_at) >= ?`
       params.push(start_date)
+      console.log(`🔍 Filtering: created_at >= '${start_date}'`)
     } else if (end_date) {
       query += ` AND DATE(t.created_at) <= ?`
       params.push(end_date)
+      console.log(`🔍 Filtering: created_at <= '${end_date}'`)
     }
 
-    query += ` ORDER BY t.calling_user_time DESC, t.created_at DESC`
+    query += ` ORDER BY t.created_at DESC`
+
+    console.log(`🔎 Final Query Parameters:`, params)
+    console.log(`📝 SQL Query:`, query.replace(/\s+/g, ' ').trim())
 
     const [tickets] = await pool.query(query, params)
+
+    console.log(`✅ Query returned ${tickets.length} tickets`)
+    if (tickets.length > 0) {
+      console.log(`📅 First ticket created_at:`, tickets[0].ticket_created_time)
+      console.log(`📅 Last ticket created_at:`, tickets[tickets.length - 1].ticket_created_time)
+    }
 
     // Format tickets for frontend
     const formattedTickets = tickets.map(ticket => ({
@@ -68,7 +79,7 @@ export const getCompletedTickets = async (req, res) => {
       representativeId: ticket.representative_id
     }))
 
-    console.log(`✅ Found ${formattedTickets.serviceTime} completed tickets`)
+    console.log(`✅ Found ${formattedTickets.length} completed tickets`)
     if (formattedTickets.length > 0) {
       console.log('📤 Sample response:', JSON.stringify(formattedTickets[0], null, 2))
     }
