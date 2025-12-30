@@ -50,6 +50,7 @@ import sessionsRoutes from "./routes/sessions.js"
 import activityLogsRoutes from "./routes/activityLogs.js"
 import timezoneRoutes from "./routes/timezoneRoutes.js"
 import buttonSettingsRoutes from "./routes/buttonSettings.js"
+import backupRoutes from "./routes/backup.js"
 import path from "path"
 import { fileURLToPath } from "url"
 
@@ -143,6 +144,7 @@ app.use("/api/sessions", sessionsRoutes)
 app.use("/api/activity-logs", activityLogsRoutes)
 app.use("/api", timezoneRoutes)
 app.use("/api/button-settings", buttonSettingsRoutes)
+app.use("/api/backup", backupRoutes)
 
 // Health check route
 app.get("/api/health", (req, res) => {

@@ -5,17 +5,19 @@ import { authenticateToken, authorize } from '../middlewares/auth.js';
 const router = express.Router();
 
 /**
- * GET /api/button-settings
- * Get current button settings (accessible by all authenticated users)
+ * GET /api/button-settings/:adminId
+ * Get current button settings for a specific admin
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/:adminId', authenticateToken, async (req, res) => {
   try {
+    const { adminId } = req.params;
+
     const [settings] = await pool.query(
-      'SELECT setting_name, setting_value FROM admin_btn_settings WHERE setting_name IN (?, ?)',
-      ['show_next_button', 'show_transfer_button']
+      'SELECT setting_name, setting_value FROM admin_btn_settings WHERE admin_id = ? AND setting_name IN (?, ?)',
+      [adminId, 'show_next_button', 'show_transfer_button']
     );
 
-    // Convert to object format
+    // Convert to object format with defaults
     const settingsObj = {
       showNextButton: true,
       showTransferButton: true
@@ -44,11 +46,12 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 /**
- * PUT /api/button-settings
- * Update button settings (admin only)
+ * PUT /api/button-settings/:adminId
+ * Update button settings for a specific admin
  */
-router.put('/', authenticateToken, authorize('admin', 'super_admin'), async (req, res) => {
+router.put('/:adminId', authenticateToken, authorize('admin', 'super_admin'), async (req, res) => {
   try {
+    const { adminId } = req.params;
     const { showNextButton, showTransferButton } = req.body;
 
     // Validate input
@@ -64,16 +67,20 @@ router.put('/', authenticateToken, authorize('admin', 'super_admin'), async (req
     try {
       await connection.beginTransaction();
 
-      // Update show_next_button
+      // Update or insert show_next_button for this admin
       await connection.query(
-        `UPDATE admin_btn_settings SET setting_value = ? WHERE setting_name = ?`,
-        [showNextButton ? 'true' : 'false', 'show_next_button']
+        `INSERT INTO admin_btn_settings (admin_id, setting_name, setting_value) 
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE setting_value = ?`,
+        [adminId, 'show_next_button', showNextButton ? 'true' : 'false', showNextButton ? 'true' : 'false']
       );
 
-      // Update show_transfer_button
+      // Update or insert show_transfer_button for this admin
       await connection.query(
-        `UPDATE admin_btn_settings SET setting_value = ? WHERE setting_name = ?`,
-        [showTransferButton ? 'true' : 'false', 'show_transfer_button']
+        `INSERT INTO admin_btn_settings (admin_id, setting_name, setting_value) 
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE setting_value = ?`,
+        [adminId, 'show_transfer_button', showTransferButton ? 'true' : 'false', showTransferButton ? 'true' : 'false']
       );
 
       await connection.commit();
