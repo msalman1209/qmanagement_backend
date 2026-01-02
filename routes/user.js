@@ -11,6 +11,7 @@ import {
   getAdminUsers,
   createTicketInfoUser,
   getTicketInfoUsers,
+  updateUser,
   deleteUser
 } from "../controllers/user/index.js"
 import { getUserAssignedTickets } from "../controllers/user/getUserAssignedTickets.js"
@@ -37,6 +38,7 @@ router.get("/admin/:adminId", authenticateToken, getAdminUsers)
 // Ticket Info User Management
 router.post("/create-ticket-info", authenticateToken, authorize("admin"), createTicketInfoUser)
 router.get("/ticket-info-users", authenticateToken, authorize("admin"), getTicketInfoUsers)
+router.put("/:id", authenticateToken, authorize("admin"), updateUser)
 router.delete("/:id", authenticateToken, authorize("admin"), deleteUser)
 
 // Get user dashboard data - requires canCallTickets permission

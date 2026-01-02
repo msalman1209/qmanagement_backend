@@ -4,29 +4,27 @@ async function checkSchema() {
   const connection = await pool.getConnection();
   
   try {
-    // Check admin table structure
-    const [columns] = await connection.query(
-      "DESCRIBE admin"
-    );
+    // Check licenses table structure
+    const [licenseColumns] = await connection.query("DESCRIBE licenses");
     
-    console.log('\n📋 Admin Table Schema:');
-    console.log(columns);
+    console.log('\n📋 Licenses Table Schema:');
+    console.table(licenseColumns);
     
-    const passwordCol = columns.find(col => col.Field === 'password');
-    console.log('\n🔐 Password Column:');
-    console.log('   Type:', passwordCol.Type);
-    console.log('   Max Length:', passwordCol.Type.match(/\d+/)?.[0] || 'Unknown');
+    // Check users table structure
+    const [userColumns] = await connection.query("DESCRIBE users");
     
-    // Check actual password length
-    const [admins] = await connection.query(
-      "SELECT email, LENGTH(password) as pwd_length, password FROM admin WHERE email = 'superadmin@example.com'"
-    );
+    console.log('\n📋 Users Table Schema:');
+    console.table(userColumns);
     
-    console.log('\n📏 Current Password:');
-    console.log('   Email:', admins[0].email);
-    console.log('   Stored Length:', admins[0].pwd_length);
-    console.log('   Password:', admins[0].password);
-    console.log('\n⚠️ Bcrypt hash needs 60 characters minimum!');
+    // Check for both_user field
+    const bothUserField = licenseColumns.find(col => col.Field === 'both_user');
+    if (bothUserField) {
+      console.log('\n✅ both_user field exists in licenses table');
+      console.log('   Type:', bothUserField.Type);
+      console.log('   Default:', bothUserField.Default);
+    } else {
+      console.log('\n⚠️ both_user field NOT found in licenses table');
+    }
     
   } catch (error) {
     console.error('❌ Error:', error.message);

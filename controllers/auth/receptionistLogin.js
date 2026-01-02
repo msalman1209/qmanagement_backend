@@ -13,9 +13,12 @@ export const receptionistLogin = async (req, res) => {
 
   const connection = await pool.getConnection()
   try {
-    // Check by email OR username - allow any role
+    // Check by email OR username
+    // ✅ Allow receptionist users AND both_user (receptionist,ticket_info)
     const [users] = await connection.query(
-      "SELECT * FROM users WHERE (email = ? OR username = ?)", 
+      `SELECT * FROM users 
+       WHERE (email = ? OR username = ?) 
+         AND (role = 'receptionist' OR role LIKE '%receptionist%')`, 
       [loginIdentifier, loginIdentifier]
     );
 
@@ -24,6 +27,13 @@ export const receptionistLogin = async (req, res) => {
     }
 
     const user = users[0]
+    
+    console.log('✅ Receptionist Login - User found:', { 
+      id: user.id, 
+      username: user.username, 
+      email: user.email, 
+      role: user.role 
+    });
     
     // ✅ Allow any user role to login from receptionist-login
     const userRole = user.role || 'receptionist';
@@ -70,18 +80,58 @@ export const receptionistLogin = async (req, res) => {
       // Existing users should be able to login even if limit is reached
     }
 
-    // Check if receptionist already logged in with ACTIVE session
-    const [sessions] = await connection.query(
-      "SELECT * FROM user_sessions WHERE user_id = ? AND active = 1 AND expires_at > NOW()",
+    // ✅ Check session limits from license
+    let sessionLimit = 1; // Default limit
+    
+    if (user.admin_id) {
+      const [licenseInfo] = await connection.query(
+        `SELECT max_receptionist_sessions, both_user_receptionist_sessions 
+         FROM licenses WHERE admin_id = ? AND status = 'active' LIMIT 1`,
+        [user.admin_id]
+      );
+      
+      if (licenseInfo.length > 0) {
+        const license = licenseInfo[0];
+        
+        // Check if user is both_user (has both roles)
+        const isBothUser = user.role && user.role.includes(',');
+        
+        if (isBothUser) {
+          // Use both_user specific receptionist session limit
+          sessionLimit = license.both_user_receptionist_sessions || 1;
+        } else {
+          // Use regular receptionist session limit
+          sessionLimit = license.max_receptionist_sessions || 1;
+        }
+        
+        console.log('📊 Session Limit Check:', { 
+          userId: user.id, 
+          username: user.username,
+          role: user.role,
+          isBothUser,
+          sessionLimit 
+        });
+      }
+    }
+    
+    // Count active receptionist sessions for this user
+    const [activeSessions] = await connection.query(
+      "SELECT COUNT(*) as count FROM user_sessions WHERE user_id = ? AND role = 'receptionist' AND active = 1 AND expires_at > NOW()",
       [user.id]
-    )
-
-    if (sessions.length > 0) {
+    );
+    
+    const activeSessionCount = activeSessions[0].count;
+    
+    console.log('🔢 Active Sessions:', activeSessionCount, '/ Limit:', sessionLimit);
+    
+    if (activeSessionCount >= sessionLimit) {
       return res.status(409).json({
         success: false,
-        message: `You are already logged in on another device. Please log out first.`,
-        already_logged_in: true,
-      })
+        message: `Session limit reached! You have ${activeSessionCount} active receptionist session(s). Maximum allowed: ${sessionLimit}. Please close an existing session first.`,
+        session_limit_reached: true,
+        active_sessions: activeSessionCount,
+        max_sessions: sessionLimit
+      });
     }
 
     // Create session for receptionist user

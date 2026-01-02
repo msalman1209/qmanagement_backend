@@ -34,6 +34,8 @@ const parseDeviceInfo = (userAgent) => {
 export const getTicketInfoSessions = async (req, res) => {
   const { admin_id } = req.params;
   
+  console.log('🔍 [getTicketInfoSessions] Admin ID:', admin_id);
+  
   try {
     const [sessions] = await pool.query(`
       SELECT 
@@ -42,19 +44,22 @@ export const getTicketInfoSessions = async (req, res) => {
         us.username,
         us.email,
         us.login_time,
+        us.role as session_role,
         COALESCE(us.device_info, us.device_id) as device_raw,
         us.ip_address,
         us.active,
         us.expires_at,
-        u.role
+        u.role as user_role
       FROM user_sessions us
       JOIN users u ON us.user_id = u.id
-      WHERE u.role = 'ticket_info'
+      WHERE us.role = 'ticket_info'
         AND u.admin_id = ?
         AND us.active = 1
         AND us.expires_at > NOW()
       ORDER BY us.login_time DESC
     `, [admin_id]);
+    
+    console.log('✅ [getTicketInfoSessions] Found sessions:', sessions.length);
 
     // Parse device info for each session
     const parsedSessions = sessions.map(session => ({
@@ -81,6 +86,8 @@ export const getTicketInfoSessions = async (req, res) => {
 export const getReceptionistSessions = async (req, res) => {
   const { admin_id } = req.params;
   
+  console.log('🔍 [getReceptionistSessions] Admin ID:', admin_id);
+  
   try {
     const [sessions] = await pool.query(`
       SELECT 
@@ -89,19 +96,22 @@ export const getReceptionistSessions = async (req, res) => {
         us.username,
         us.email,
         us.login_time,
+        us.role as session_role,
         COALESCE(us.device_info, us.device_id) as device_raw,
         us.ip_address,
         us.active,
         us.expires_at,
-        u.role
+        u.role as user_role
       FROM user_sessions us
       JOIN users u ON us.user_id = u.id
-      WHERE u.role = 'receptionist'
+      WHERE us.role = 'receptionist'
         AND u.admin_id = ?
         AND us.active = 1
         AND us.expires_at > NOW()
       ORDER BY us.login_time DESC
     `, [admin_id]);
+    
+    console.log('✅ [getReceptionistSessions] Found sessions:', sessions.length);
 
     // Parse device info for each session
     const parsedSessions = sessions.map(session => ({

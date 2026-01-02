@@ -22,6 +22,12 @@ export const updateLicense = async (req, res) => {
       max_users,
       max_counters,
       max_services,
+      max_receptionist_sessions,
+      max_ticket_info_sessions,
+      both_user,
+      both_user_receptionist_sessions,
+      both_user_ticket_info_sessions,
+      // Support old field names too
       max_receptionists,
       max_ticket_info_users,
       max_sessions_per_receptionist,
@@ -131,6 +137,32 @@ export const updateLicense = async (req, res) => {
       updates.push("max_services = ?")
       values.push(max_services)
     }
+    
+    // Support new session-based fields
+    if (max_receptionist_sessions !== undefined || max_sessions_per_receptionist !== undefined) {
+      updates.push("max_receptionist_sessions = ?")
+      values.push(max_receptionist_sessions || max_sessions_per_receptionist)
+    }
+    if (max_ticket_info_sessions !== undefined || max_sessions_per_ticket_info !== undefined) {
+      updates.push("max_ticket_info_sessions = ?")
+      values.push(max_ticket_info_sessions || max_sessions_per_ticket_info)
+    }
+    if (both_user !== undefined) {
+      updates.push("both_user = ?")
+      values.push(both_user)
+    }
+    
+    // Both user session limits
+    if (both_user_receptionist_sessions !== undefined) {
+      updates.push("both_user_receptionist_sessions = ?")
+      values.push(both_user_receptionist_sessions)
+    }
+    if (both_user_ticket_info_sessions !== undefined) {
+      updates.push("both_user_ticket_info_sessions = ?")
+      values.push(both_user_ticket_info_sessions)
+    }
+    
+    // Keep old field names for backward compatibility
     if (max_receptionists !== undefined) {
       updates.push("max_receptionists = ?")
       values.push(max_receptionists)
@@ -138,14 +170,6 @@ export const updateLicense = async (req, res) => {
     if (max_ticket_info_users !== undefined) {
       updates.push("max_ticket_info_users = ?")
       values.push(max_ticket_info_users)
-    }
-    if (max_sessions_per_receptionist !== undefined) {
-      updates.push("max_sessions_per_receptionist = ?")
-      values.push(max_sessions_per_receptionist)
-    }
-    if (max_sessions_per_ticket_info !== undefined) {
-      updates.push("max_sessions_per_ticket_info = ?")
-      values.push(max_sessions_per_ticket_info)
     }
     if (req.body.features !== undefined) {
       updates.push("features = ?")

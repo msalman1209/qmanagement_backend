@@ -45,11 +45,11 @@ export const createUserSession = async (userId, username, email = null, counterN
 
     // Insert session into database
     const query = `
-      INSERT INTO user_sessions (user_id, username, email, counter_no, admin_id, device_id, token, ip_address, login_time, expires_at, active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, 1)
+      INSERT INTO user_sessions (user_id, username, role, email, counter_no, admin_id, device_id, token, ip_address, login_time, expires_at, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, 1)
     `
 
-    await pool.query(query, [userId, username, email, counterNo, adminId, deviceInfo, token, ipAddress, expiresAt])
+    await pool.query(query, [userId, username, userRole, email, counterNo, adminId, deviceInfo, token, ipAddress, expiresAt])
 
     return { success: true, token }
   } catch (error) {

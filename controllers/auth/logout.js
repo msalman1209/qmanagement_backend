@@ -12,31 +12,36 @@ export const logout = async (req, res) => {
 
     console.log(`🔓 Logout request for role: ${req.user.role}, user: ${req.user.username || req.user.id}, user_id: ${req.user.id}`)
 
-    // Delete ALL sessions for this user (not just current token)
-    // This ensures user is logged out from ALL devices
+    // Delete ONLY current session (by token) - keeps other device sessions active
     let result
-    if (req.user.role === "user" || req.user.role === "receptionist" || req.user.role === "ticket_info") {
-      // Delete all user sessions for this user_id
+    
+    // Handle both single roles and comma-separated roles (e.g., "receptionist,ticket_info")
+    const userRole = req.user.role || '';
+    const isUserRole = userRole === "user" || userRole.includes("receptionist") || userRole.includes("ticket_info");
+    const isAdminRole = userRole === "admin" || userRole === "super_admin";
+    
+    if (isUserRole) {
+      // Delete only THIS session (by token) from user_sessions
       const connection = await pool.getConnection()
       try {
         const [deleteResult] = await connection.query(
-          "DELETE FROM user_sessions WHERE user_id = ?",
-          [req.user.id]
+          "DELETE FROM user_sessions WHERE user_id = ? AND token = ?",
+          [req.user.id, token]
         )
-        console.log(`✅ Deleted ${deleteResult.affectedRows} user session(s) for user ${req.user.id}`)
+        console.log(`✅ Deleted current session for user ${req.user.id} (affected rows: ${deleteResult.affectedRows})`)
         result = { success: true, rowsAffected: deleteResult.affectedRows }
       } finally {
         connection.release()
       }
-    } else if (req.user.role === "admin" || req.user.role === "super_admin") {
-      // Delete all admin sessions for this admin_id
+    } else if (isAdminRole) {
+      // Delete only THIS session (by token) from admin_sessions
       const connection = await pool.getConnection()
       try {
         const [deleteResult] = await connection.query(
-          "DELETE FROM admin_sessions WHERE admin_id = ?",
-          [req.user.id]
+          "DELETE FROM admin_sessions WHERE admin_id = ? AND token = ?",
+          [req.user.id, token]
         )
-        console.log(`✅ Deleted ${deleteResult.affectedRows} admin session(s) for admin ${req.user.id}`)
+        console.log(`✅ Deleted current session for admin ${req.user.id} (affected rows: ${deleteResult.affectedRows})`)
         result = { success: true, rowsAffected: deleteResult.affectedRows }
       } finally {
         connection.release()

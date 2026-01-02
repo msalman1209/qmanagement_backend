@@ -27,15 +27,24 @@ export const createLicense = async (req, res) => {
       max_users,
       max_counters,
       max_services,
-      max_receptionists,
-      max_ticket_info_users,
-      max_sessions_per_receptionist,
-      max_sessions_per_ticket_info,
+      max_receptionist_sessions,
+      max_ticket_info_sessions,
+      both_user,
+      both_user_receptionist_sessions,
+      both_user_ticket_info_sessions,
       features,
       status,
       admin_username,
       admin_password
     } = req.body
+
+    // Support both old and new field names
+    const maxReceptionistSessions = max_receptionist_sessions || req.body.max_sessions_per_receptionist || 1
+    const maxTicketInfoSessions = max_ticket_info_sessions || req.body.max_sessions_per_ticket_info || 1
+    
+    // Set defaults for both_user sessions
+    const bothUserReceptionistSessions = both_user_receptionist_sessions || 1
+    const bothUserTicketInfoSessions = both_user_ticket_info_sessions || 1
 
     // Handle logo upload
     const company_logo = req.file ? `/uploads/licenses/${req.file.filename}` : null
@@ -70,10 +79,7 @@ export const createLicense = async (req, res) => {
     max_users = max_users || licenseFeatures.max_users
     max_counters = max_counters || licenseFeatures.max_counters
     max_services = max_services || licenseFeatures.max_services
-    max_receptionists = max_receptionists || 5
-    max_ticket_info_users = max_ticket_info_users || 3
-    max_sessions_per_receptionist = max_sessions_per_receptionist || 1
-    max_sessions_per_ticket_info = max_sessions_per_ticket_info || 1
+    both_user = both_user || 1  // Default: 1 user for both roles
     features = features || JSON.stringify(licenseFeatures.features)
 
     // Set start date to today if not provided
@@ -167,9 +173,10 @@ export const createLicense = async (req, res) => {
       INSERT INTO licenses (
         license_key, admin_id, admin_name, company_name, company_logo, phone, email, 
         address, city, country, license_type, start_date, expiry_date, 
-        max_users, max_counters, max_services, max_receptionists, max_ticket_info_users,
-        max_sessions_per_receptionist, max_sessions_per_ticket_info, features, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        max_users, max_counters, max_services, max_receptionist_sessions, 
+        max_ticket_info_sessions, both_user, both_user_receptionist_sessions, 
+        both_user_ticket_info_sessions, features, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `
 
     const [licenseResult] = await connection.query(licenseQuery, [
@@ -189,19 +196,44 @@ export const createLicense = async (req, res) => {
       max_users,
       max_counters,
       max_services,
-      max_receptionists,
-      max_ticket_info_users,
-      max_sessions_per_receptionist,
-      max_sessions_per_ticket_info,
+      maxReceptionistSessions,
+      maxTicketInfoSessions,
+      both_user,
+      bothUserReceptionistSessions,
+      bothUserTicketInfoSessions,
       typeof features === 'string' ? features : JSON.stringify(features),
       status || 'active'
     ])
+
+    // Create default user with both receptionist and ticket_info roles
+    if (both_user >= 1) {
+      const defaultUserEmail = `${admin_username.toLowerCase().replace(/\s+/g, '')}.user@${company_name.toLowerCase().replace(/\s+/g, '')}.com`
+      const defaultUserPassword = 'QueUser123!' // Default password
+      const hashedUserPassword = await bcryptjs.hash(defaultUserPassword, 10)
+
+      const userQuery = `
+        INSERT INTO users (
+          username, email, password, role, admin_id, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, 'active', NOW())
+      `
+
+      // Create user with 'receptionist,ticket_info' roles (comma separated for both)
+      await connection.query(userQuery, [
+        `${admin_username} User`,
+        defaultUserEmail,
+        hashedUserPassword,
+        'receptionist,ticket_info',  // Both roles
+        newAdminId
+      ])
+
+      console.log(`✅ Created default user: ${defaultUserEmail} with both roles`)
+    }
 
     await connection.commit()
 
     res.status(201).json({
       success: true,
-      message: "License and admin account created successfully",
+      message: "License, admin account, and default user created successfully",
       data: {
         license_id: licenseResult.insertId,
         license_key,
@@ -214,10 +246,17 @@ export const createLicense = async (req, res) => {
         max_users,
         max_counters,
         max_services,
-        max_receptionists,
-        max_ticket_info_users,
-        max_sessions_per_receptionist,
-        max_sessions_per_ticket_info,
+        max_receptionist_sessions: maxReceptionistSessions,
+        max_ticket_info_sessions: maxTicketInfoSessions,
+        both_user,
+        both_user_receptionist_sessions: bothUserReceptionistSessions,
+        both_user_ticket_info_sessions: bothUserTicketInfoSessions,
+        default_user: both_user >= 1 ? {
+          email: `${admin_username.toLowerCase().replace(/\s+/g, '')}.user@${company_name.toLowerCase().replace(/\s+/g, '')}.com`,
+          password: 'QueUser123!',
+          roles: 'receptionist, ticket_info',
+          note: 'Can login to both receptionist and ticket_info screens'
+        } : null,
         features: typeof features === 'string' ? JSON.parse(features) : features
       }
     })
