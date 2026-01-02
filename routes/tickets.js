@@ -21,7 +21,7 @@ router.post("/", createTicket)
 router.get("/reports", authenticateToken, authorize("admin", "super_admin"), getReports)
 
 // Get all tickets
-router.get("/", authenticateToken, authorize("admin", "user", "super_admin", "receptionist"), getAllTickets)
+router.get("/", authenticateToken, authorize("admin", "user", "super_admin", "receptionist" , "receptionist,ticket_info"), getAllTickets)
 
 // Get ticket by ID
 router.get("/:ticketId", authenticateToken, authorize("admin", "user", "super_admin", "receptionist"), getTicketById)
