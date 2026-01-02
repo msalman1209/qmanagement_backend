@@ -36,10 +36,10 @@ router.get("/all", authenticateToken, getAllUsers)
 router.get("/admin/:adminId", authenticateToken, getAdminUsers)
 
 // Ticket Info User Management
-router.post("/create-ticket-info", authenticateToken, authorize("admin"), createTicketInfoUser)
-router.get("/ticket-info-users", authenticateToken, authorize("admin"), getTicketInfoUsers)
-router.put("/:id", authenticateToken, authorize("admin"), updateUser)
-router.delete("/:id", authenticateToken, authorize("admin"), deleteUser)
+router.post("/create-ticket-info", authenticateToken, authorize("admin", "super_admin"), createTicketInfoUser)
+router.get("/ticket-info-users", authenticateToken, authorize("admin", "super_admin"), getTicketInfoUsers)
+router.put("/:id", authenticateToken, authorize("admin", "super_admin"), updateUser)
+router.delete("/:id", authenticateToken, authorize("admin", "super_admin"), deleteUser)
 
 // Get user dashboard data - requires canCallTickets permission
 router.get("/dashboard", authenticateToken, checkPermission('canCallTickets'), getUserDashboard)
