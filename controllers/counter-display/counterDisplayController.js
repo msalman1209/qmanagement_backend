@@ -184,14 +184,22 @@ export const uploadSliderImages = async (req, res) => {
     
     console.log('  📌 Final targetAdminId for images:', targetAdminId);
 
+    // Get current max display_order for this admin
+    const [maxOrderResult] = await pool.query(
+      'SELECT COALESCE(MAX(display_order), 0) as maxOrder FROM slider_images WHERE admin_id = ?',
+      [targetAdminId]
+    );
+    let displayOrder = maxOrderResult[0].maxOrder;
+
     const uploadedImages = [];
 
     for (const file of req.files) {
+      displayOrder++; // Increment for each new image
       const imageUrl = `/uploads/${file.filename}`;
       
       const [result] = await pool.query(
         'INSERT INTO slider_images (admin_id, image_url, image_name, display_order) VALUES (?, ?, ?, ?)',
-        [targetAdminId, imageUrl, file.originalname, Date.now()]
+        [targetAdminId, imageUrl, file.originalname, displayOrder]
       );
 
       uploadedImages.push({
@@ -406,6 +414,66 @@ export const deleteSliderImage = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete image',
+      error: error.message
+    });
+  }
+};
+
+// Delete video
+export const deleteVideo = async (req, res) => {
+  try {
+    const { admin_id } = req.body;
+
+    if (!admin_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin ID is required'
+      });
+    }
+
+    // Get video info first
+    const [configs] = await pool.query(
+      'SELECT video_url FROM counter_display_config WHERE admin_id = ?',
+      [admin_id]
+    );
+
+    if (!configs || configs.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Configuration not found'
+      });
+    }
+
+    const videoUrl = configs[0].video_url;
+
+    if (!videoUrl) {
+      return res.status(404).json({
+        success: false,
+        message: 'No video found to delete'
+      });
+    }
+
+    // Delete file from filesystem
+    const filePath = path.join(__dirname, '../../', videoUrl);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Update database to clear video_url
+    await pool.query(
+      'UPDATE counter_display_config SET video_url = NULL WHERE admin_id = ?',
+      [admin_id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Video deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting video:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete video',
       error: error.message
     });
   }

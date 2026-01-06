@@ -122,4 +122,7 @@ router.post('/upload-images', authenticateToken, (req, res, next) => {
 // Delete slider image
 router.delete('/image/:id', authenticateToken, counterDisplayController.deleteSliderImage);
 
+// Delete video
+router.post('/delete-video', authenticateToken, counterDisplayController.deleteVideo);
+
 export default router;

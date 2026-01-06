@@ -66,6 +66,35 @@ export const updateUser = async (req, res) => {
 
   } catch (error) {
     console.error("Update user error:", error);
+    
+    // ✅ Handle duplicate entry errors with clear messages
+    if (error.code === 'ER_DUP_ENTRY') {
+      const errorMessage = error.sqlMessage || error.message;
+      
+      // Check if duplicate username
+      if (errorMessage.includes('unique_username') || errorMessage.includes("for key 'username'")) {
+        return res.status(400).json({
+          success: false,
+          message: "This username is already taken. Please choose a different username."
+        });
+      }
+      
+      // Check if duplicate email
+      if (errorMessage.includes('unique_email') || errorMessage.includes("for key 'email'")) {
+        return res.status(400).json({
+          success: false,
+          message: "This email is already registered. Please use a different email address."
+        });
+      }
+      
+      // Generic duplicate entry
+      return res.status(400).json({
+        success: false,
+        message: "Username or email is already in use. Please change and try again."
+      });
+    }
+    
+    // Generic error
     res.status(500).json({
       success: false,
       message: "Failed to update user",
